@@ -1,0 +1,45 @@
+# Binarios y builds
+*.exe
+*.dll
+*.so
+*.dylib
+backend/main
+backend/tmp/
+
+# Dependencias
+backend/vendor/
+frontend/node_modules/
+frontend/dist/
+frontend/dist-ssr/
+
+# Variables de entorno (nunca commitear)
+.env
+.env.local
+.env.*.local
+
+# Logs
+*.log
+logs/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Docker
+*.env.docker
+
+# Test
+coverage/
+*.cover
+*.out
+
+# Temporal
+tmp/
+temp/

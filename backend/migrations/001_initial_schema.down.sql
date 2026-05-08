@@ -1,0 +1,60 @@
+-- Migration: 001_initial_schema (down)
+-- Elimina todo el esquema en orden inverso
+
+DROP INDEX IF EXISTS idx_sync_errors_entity;
+DROP INDEX IF EXISTS idx_sync_errors_is_resolved;
+DROP INDEX IF EXISTS idx_sync_errors_restaurant_id;
+DROP INDEX IF EXISTS idx_sync_logs_started_at;
+DROP INDEX IF EXISTS idx_sync_logs_status;
+DROP INDEX IF EXISTS idx_sync_logs_entity;
+DROP INDEX IF EXISTS idx_sync_logs_restaurant_id;
+DROP INDEX IF EXISTS idx_payments_payment_type;
+DROP INDEX IF EXISTS idx_payments_created_time;
+DROP INDEX IF EXISTS idx_payments_employee_id;
+DROP INDEX IF EXISTS idx_payments_order_id;
+DROP INDEX IF EXISTS idx_payments_restaurant_id;
+DROP INDEX IF EXISTS idx_order_category_summary_restaurant;
+DROP INDEX IF EXISTS idx_order_category_summary_category;
+DROP INDEX IF EXISTS idx_order_category_summary_order_id;
+DROP INDEX IF EXISTS idx_order_items_product_created;
+DROP INDEX IF EXISTS idx_order_items_analytic_category;
+DROP INDEX IF EXISTS idx_order_items_product_id;
+DROP INDEX IF EXISTS idx_order_items_order_id;
+DROP INDEX IF EXISTS idx_orders_employee_categories;
+DROP INDEX IF EXISTS idx_orders_employee_created;
+DROP INDEX IF EXISTS idx_orders_state;
+DROP INDEX IF EXISTS idx_orders_modified_time;
+DROP INDEX IF EXISTS idx_orders_created_time;
+DROP INDEX IF EXISTS idx_orders_employee_id;
+DROP INDEX IF EXISTS idx_orders_restaurant_id;
+DROP INDEX IF EXISTS idx_products_is_available;
+DROP INDEX IF EXISTS idx_products_clover_item_id;
+DROP INDEX IF EXISTS idx_products_category_id;
+DROP INDEX IF EXISTS idx_products_restaurant_id;
+DROP INDEX IF EXISTS idx_category_mappings_analytic;
+DROP INDEX IF EXISTS idx_category_mappings_restaurant_id;
+DROP INDEX IF EXISTS idx_analytic_categories_is_active;
+DROP INDEX IF EXISTS idx_analytic_categories_restaurant_id;
+DROP INDEX IF EXISTS idx_categories_restaurant_id;
+DROP INDEX IF EXISTS idx_employees_is_active;
+DROP INDEX IF EXISTS idx_employees_clover_employee_id;
+DROP INDEX IF EXISTS idx_employees_restaurant_id;
+DROP INDEX IF EXISTS idx_restaurants_ticket_rules;
+DROP INDEX IF EXISTS idx_restaurants_is_active;
+DROP INDEX IF EXISTS idx_restaurants_is_connected;
+DROP INDEX IF EXISTS idx_restaurants_clover_merchant_id;
+
+DROP TABLE IF EXISTS sync_errors;
+DROP TABLE IF EXISTS sync_logs;
+DROP TABLE IF EXISTS payments;
+DROP TABLE IF EXISTS order_category_summary;
+DROP TABLE IF EXISTS order_items;
+DROP TABLE IF EXISTS orders;
+DROP TABLE IF EXISTS products;
+DROP TABLE IF EXISTS category_mappings;
+DROP TABLE IF EXISTS analytic_categories;
+DROP TABLE IF EXISTS categories;
+DROP TABLE IF EXISTS employees;
+DROP TABLE IF EXISTS restaurants;
+
+DROP TYPE IF EXISTS sync_entity;

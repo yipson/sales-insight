@@ -1,0 +1,86 @@
+version: "2"
+sql:
+  - engine: "postgresql"
+    queries: "internal/merchant/sqlc/queries.sql"
+    schema: "migrations/"
+    gen:
+      go:
+        package: "sqlc"
+        out: "internal/merchant/sqlc"
+        sql_package: "database/sql"
+        emit_json_tags: true
+        emit_interface: false
+        emit_pointers_for_null_types: true
+        overrides:
+          - db_type: "uuid"
+            go_type: "github.com/google/uuid.UUID"
+          - db_type: "timestamptz"
+            go_type: "time.Time"
+
+  - engine: "postgresql"
+    queries: "internal/orders/sqlc/queries.sql"
+    schema: "migrations/"
+    gen:
+      go:
+        package: "sqlc"
+        out: "internal/orders/sqlc"
+        sql_package: "database/sql"
+        emit_json_tags: true
+        emit_interface: false
+        emit_pointers_for_null_types: true
+        overrides:
+          - db_type: "uuid"
+            go_type: "github.com/google/uuid.UUID"
+          - db_type: "timestamptz"
+            go_type: "time.Time"
+
+  - engine: "postgresql"
+    queries: "internal/products/sqlc/queries.sql"
+    schema: "migrations/"
+    gen:
+      go:
+        package: "sqlc"
+        out: "internal/products/sqlc"
+        sql_package: "database/sql"
+        emit_json_tags: true
+        emit_interface: false
+        emit_pointers_for_null_types: true
+        overrides:
+          - db_type: "uuid"
+            go_type: "github.com/google/uuid.UUID"
+          - db_type: "timestamptz"
+            go_type: "time.Time"
+
+  - engine: "postgresql"
+    queries: "internal/employees/sqlc/queries.sql"
+    schema: "migrations/"
+    gen:
+      go:
+        package: "sqlc"
+        out: "internal/employees/sqlc"
+        sql_package: "database/sql"
+        emit_json_tags: true
+        emit_interface: false
+        emit_pointers_for_null_types: true
+        overrides:
+          - db_type: "uuid"
+            go_type: "github.com/google/uuid.UUID"
+          - db_type: "timestamptz"
+            go_type: "time.Time"
+
+  - engine: "postgresql"
+    queries: "internal/analytics/sqlc/queries.sql"
+    schema: "migrations/"
+    gen:
+      go:
+        package: "sqlc"
+        out: "internal/analytics/sqlc"
+        sql_package: "database/sql"
+        emit_json_tags: true
+        emit_interface: false
+        emit_pointers_for_null_types: true
+        overrides:
+          - db_type: "uuid"
+            go_type: "github.com/google/uuid.UUID"
+          - db_type: "timestamptz"
+            go_type: "time.Time"

@@ -1,4 +1,4 @@
-package database
+package db
 
 import (
 	"context"
@@ -6,23 +6,23 @@ import (
 	"fmt"
 	"time"
 
-	_ "github.com/jackc/pgx/v5/stdlib" // pgx driver
+	_ "github.com/jackc/pgx/v5/stdlib"
 )
 
-// DB wraps sql.DB with application-specific helpers.
-type DB struct {
+// Postgres wraps sql.DB with application-specific helpers.
+type Postgres struct {
 	*sql.DB
 }
 
-// NewDB opens a connection pool to PostgreSQL.
-func NewDB(cfg Config) (*DB, error) {
-	db, err := sql.Open("pgx", cfg.DSN())
+// NewPostgres opens a connection pool to PostgreSQL.
+func NewPostgres(dsn string) (*Postgres, error) {
+	db, err := sql.Open("pgx", dsn)
 	if err != nil {
 		return nil, fmt.Errorf("open database: %w", err)
 	}
 
-	db.SetMaxOpenConns(cfg.MaxOpenConns)
-	db.SetMaxIdleConns(cfg.MaxIdleConns)
+	db.SetMaxOpenConns(25)
+	db.SetMaxIdleConns(10)
 	db.SetConnMaxLifetime(5 * time.Minute)
 	db.SetConnMaxIdleTime(1 * time.Minute)
 
@@ -34,17 +34,12 @@ func NewDB(cfg Config) (*DB, error) {
 		return nil, fmt.Errorf("ping database: %w", err)
 	}
 
-	return &DB{DB: db}, nil
+	return &Postgres{DB: db}, nil
 }
 
 // Health returns nil if the database is reachable.
-func (d *DB) Health(ctx context.Context) error {
+func (d *Postgres) Health(ctx context.Context) error {
 	ctx, cancel := context.WithTimeout(ctx, 2*time.Second)
 	defer cancel()
 	return d.PingContext(ctx)
-}
-
-// Close closes the connection pool.
-func (d *DB) Close() error {
-	return d.DB.Close()
 }

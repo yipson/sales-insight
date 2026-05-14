@@ -132,103 +132,155 @@
 
 ## 4. Estructura de Directorios del Proyecto
 
+### 4.1 Backend — Layout Feature-Based
+
 ```
-sales-insight/
-├── docker-compose.yml
-├── Makefile
-├── README.md
-├── SPEC.md
-├── ARCHITECTURE.md
-├── DATABASE_SCHEMA.md
+backend/
+├── cmd/
+│   ├── api/
+│   │   └── main.go                   # Entrypoint: API HTTP + scheduler (MVP unificado)
+│   └── worker/
+│       └── main.go                   # Entrypoint futuro: solo sync engine (extracción a contenedor separado)
 │
-├── backend/                          # Aplicación Go (monolito)
-│   ├── Dockerfile
-│   ├── go.mod
-│   ├── go.sum
-│   ├── cmd/
-│   │   └── server/
-│   │       └── main.go               # Entrypoint: inicializa API, scheduler, DB, token cache
-│   │
-│   ├── internal/
+├── internal/
+│   ├── platform/                     # Infraestructura transversal (sin lógica de negocio)
 │   │   ├── config/
-│   │   │   └── config.go             # Viper: lectura de env vars
-│   │   ├── database/
-│   │   │   ├── db.go                 # Conexión PostgreSQL + pool
-│   │   │   └── queries/              # Archivos .sql para sqlc
-│   │   ├── models/                   # Structs generados por sqlc
-│   │   ├── clover/
-│   │   │   ├── client.go             # HTTP client para Clover API + rate limiting
-│   │   │   ├── auth.go               # OAuth 2.0 flow + token refresh
-│   │   │   ├── types.go              # Structs de respuesta de Clover
-│   │   │   ├── export.go             # Cliente para Clover Export API
-│   │   │   └── rate_limiter.go       # Token bucket rate limiter
-│   │   ├── sync/
-│   │   │   ├── engine.go             # Orquestador de sincronización
-│   │   │   ├── orders.go             # Lógica de extracción de órdenes
-│   │   │   ├── items.go              # Lógica de extracción de productos
-│   │   │   ├── employees.go          # Lógica de extracción de empleados
-│   │   │   ├── payments.go           # Lógica de extracción de pagos
-│   │   │   ├── export_sync.go        # Lógica para descargar archivos Export API
-│   │   │   └── transform.go          # Normalización de datos crudos → modelo propio
+│   │   │   └── config.go             # Viper: lectura de env vars + validación
+│   │   ├── db/
+│   │   │   └── postgres.go           # Conexión PostgreSQL + pool configurado
+│   │   ├── logger/
+│   │   │   └── logger.go             # slog estructurado + redacción de PII
 │   │   ├── scheduler/
-│   │   │   └── scheduler.go          # Tareas cron: polling periódico + refresh de tokens
-│   │   ├── api/
-│   │   │   ├── server.go             # Setup de Echo, middlewares, routes
-│   │   │   ├── handlers/
-│   │   │   │   ├── auth.go           # Callback OAuth, estado de conexión, bootstrap manual
-│   │   │   │   ├── dashboard.go      # Endpoints de métricas
-│   │   │   │   ├── employees.go      # CRUD empleados + métricas
-│   │   │   │   ├── products.go       # Listado + mapeo de categorías
-│   │   │   │   ├── orders.go         # Listado y detalle de órdenes
-│   │   │   │   └── sync_status.go    # Estado de sincronización y logs
-│   │   │   └── middleware/
-│   │   │       └── auth.go           # Validación JWT de sesiones del dashboard
-│   │   ├── encryption/
-│   │   │   └── encryption.go         # AES-GCM para tokens en reposo
-│   │   ├── token_cache/
-│   │   │   └── cache.go              # Caché en memoria de tokens (reconstruida desde DB al iniciar)
-│   │   └── logger/
-│   │       └── logger.go             # Wrapper de slog con redacción de PII
+│   │   │   └── cron.go               # Wrapper de robfig/cron + graceful stop
+│   │   └── security/
+│   │       └── encryption.go         # AES-256-GCM para tokens en reposo
 │   │
-│   └── migrations/
-│       ├── 001_initial_schema.up.sql
-│       ├── 001_initial_schema.down.sql
-│       └── ...
+│   ├── clover/                       # Integración externa: Clover API
+│   │   ├── client.go                 # HTTP client + rate limiting + retry
+│   │   ├── auth.go                   # OAuth 2.0 + refresh automático
+│   │   ├── dto.go                    # Structs de respuesta de Clover
+│   │   └── rate_limiter.go           # Token bucket (golang.org/x/time/rate)
+│   │
+│   ├── merchant/                     # Feature: restaurante/merchant
+│   │   ├── model.go                  # Structs de dominio (no sqlc)
+│   │   ├── repository.go             # Interfaz: MerchantRepository
+│   │   ├── service.go                # Lógica de negocio del merchant
+│   │   ├── handler.go                # HTTP handlers
+│   │   └── sqlc/
+│   │       ├── queries.sql           # Queries SQL para sqlc
+│   │       └── repository.go         # Implementación concreta con sqlc
+│   │
+│   ├── orders/                       # Feature: órdenes + líneas
+│   │   ├── model.go
+│   │   ├── repository.go             # Interfaz: OrderRepository
+│   │   ├── service.go
+│   │   ├── handler.go
+│   │   └── sqlc/
+│   │       ├── queries.sql
+│   │       └── repository.go
+│   │
+│   ├── products/                     # Feature: productos + categorías
+│   │   ├── model.go
+│   │   ├── repository.go             # Interfaz: ProductRepository, CategoryRepository
+│   │   ├── service.go
+│   │   ├── handler.go
+│   │   └── sqlc/
+│   │       ├── queries.sql
+│   │       └── repository.go
+│   │
+│   ├── employees/                    # Feature: empleados + métricas
+│   │   ├── model.go
+│   │   ├── repository.go             # Interfaz: EmployeeRepository
+│   │   ├── service.go
+│   │   ├── handler.go
+│   │   └── sqlc/
+│   │       ├── queries.sql
+│   │       └── repository.go
+│   │
+│   ├── analytics/                    # Feature: métricas y agregaciones
+│   │   ├── model.go
+│   │   ├── repository.go             # Interfaz: AnalyticsRepository
+│   │   ├── service.go                # Cálculo de KPIs, cobertura, ticket ideal
+│   │   └── handler.go
+│   │
+│   ├── dashboard/                    # Feature: API del dashboard (orquesta analytics)
+│   │   ├── model.go                  # DTOs de respuesta para el frontend
+│   │   ├── service.go                # Compone métricas de múltiples features
+│   │   └── handler.go                # Endpoints: /dashboard/summary, /dashboard/sales-by-employee, etc.
+│   │
+│   ├── auth/                         # Feature: autenticación (JWT interno + Clover OAuth)
+│   │   ├── service.go                # Login/logout Clover, generación JWT de sesión
+│   │   ├── handler.go                # /auth/clover, /auth/callback, /auth/bootstrap
+│   │   └── middleware.go             # Validación JWT en rutas protegidas
+│   │
+│   ├── sync/                         # Feature: engine de sincronización ETL
+│   │   ├── engine.go                 # Orquestador de todas las extracciones
+│   │   ├── orders.go                 # Extracción incremental de órdenes
+│   │   ├── items.go                  # Extracción de productos/categorías
+│   │   ├── employees.go              # Extracción de empleados
+│   │   ├── payments.go               # Extracción de pagos
+│   │   └── transform.go              # Normalización: centavos→unidad, UTC, mapeo de categorías
+│   │
+│   └── token_cache/
+│       └── cache.go                  # Mapa en memoria [restaurantID]TokenData + sync.RWMutex
 │
-├── frontend/                         # Aplicación React
-│   ├── Dockerfile
-│   ├── package.json
-│   ├── vite.config.ts
-│   ├── index.html
-│   ├── tailwind.config.js            # Desktop-first, sin breakpoints móviles en MVP
-│   └── src/
-│       ├── main.tsx
-│       ├── App.tsx
-│       ├── api/
-│       │   └── client.ts             # Axios/fetch configurado con base URL
-│       ├── hooks/
-│       │   └── useDashboard.ts       # TanStack Query wrappers
-│       ├── components/
-│       │   ├── Layout.tsx
-│       │   ├── Sidebar.tsx
-│       │   ├── DateRangePicker.tsx
-│       │   ├── MetricCard.tsx
-│       │   └── charts/
-│       │       ├── SalesByEmployee.tsx
-│       │       ├── TopProducts.tsx
-│       │       ├── TicketAnalysis.tsx
-│       │       └── SalesTrend.tsx
-│       ├── pages/
-│       │   ├── Dashboard.tsx
-│       │   ├── Employees.tsx
-│       │   ├── Products.tsx
-│       │   ├── Orders.tsx
-│       │   └── Settings.tsx
-│       └── types/
-│           └── index.ts
+├── migrations/
+│   ├── 001_initial_schema.up.sql
+│   ├── 001_initial_schema.down.sql
+│   └── ...
 │
-└── nginx/                            # Pendiente: solo para despliegue en DO
-    └── nginx.conf                    # Configuración de proxy reverso + SSL
+├── scripts/
+│   ├── sqlc-generate.sh              # Genera código sqlc para todos los features
+│   └── dev.sh                        # Levanta local: air / go run
+│
+├── sqlc.yaml                         # Configuración global de sqlc (múltiples packages)
+├── Dockerfile
+├── go.mod
+├── go.sum
+└── Makefile
+```
+
+### 4.2 Frontend (sin cambios)
+
+```
+frontend/                         # Aplicación React
+├── Dockerfile
+├── package.json
+├── vite.config.ts
+├── index.html
+├── tailwind.config.js            # Desktop-first, sin breakpoints móviles en MVP
+└── src/
+    ├── main.tsx
+    ├── App.tsx
+    ├── api/
+    │   └── client.ts             # Axios/fetch configurado con base URL
+    ├── hooks/
+    │   └── useDashboard.ts       # TanStack Query wrappers
+    ├── components/
+    │   ├── Layout.tsx
+    │   ├── Sidebar.tsx
+    │   ├── DateRangePicker.tsx
+    │   ├── MetricCard.tsx
+    │   └── charts/
+    │       ├── SalesByEmployee.tsx
+    │       ├── TopProducts.tsx
+    │       ├── TicketAnalysis.tsx
+    │       └── SalesTrend.tsx
+    ├── pages/
+    │   ├── Dashboard.tsx
+    │   ├── Employees.tsx
+    │   ├── Products.tsx
+    │   ├── Orders.tsx
+    │   └── Settings.tsx
+    └── types/
+        └── index.ts
+```
+
+### 4.3 Infra (post-MVP)
+
+```
+nginx/                            # Pendiente: solo para despliegue en DO
+└── nginx.conf                    # Configuración de proxy reverso + SSL
 ```
 
 ---
@@ -434,6 +486,37 @@ Datos crudos Clover API
 - Facilita iteraciones rápidas sin deploys remotos.
 - Nginx y SSL se posponen hasta la migración a nube, reduciendo componentes en local.
 - El código está preparado para migrar: basta agregar Nginx y un dominio.
+
+### ADR-11: Layout Feature-Based vs. Layered
+**Decisión:** Estructura de directorios organizada por *feature* (`merchant/`, `orders/`, `products/`, `analytics/`, etc.) en lugar de por capa técnica (`handlers/`, `services/`, `repositories/`).  
+**Justificación:**
+- Escalabilidad cognitiva: un desarrollador trabaja en un feature modificando archivos contiguos.
+- Cada feature encapsula su propio dominio (modelos), persistencia (interfaz + implementación sqlc), lógica (service) y transporte (handler).
+- Reduce merge conflicts en equipos pequeños trabajando en features distintas.
+- `internal/platform/` centraliza infra transversal sin lógica de negocio.
+
+### ADR-12: Dependency Injection Manual
+**Decisión:** Inyección de dependencias vía constructores explícitos, sin bibliotecas de DI (Wire, FX, Dig, Do).  
+**Justificación:**
+- El MVP tiene <15 servicios; el wiring manual en `cmd/api/main.go` es legible y explícito.
+- Cero dependencias mágicas: cada struct declara exactamente qué necesita.
+- Facilita testing unitario: inyectar mocks es trivial sin contenedores ni reflection.
+- Si el grafo de dependencias crece más allá de 20 servicios post-MVP, se evaluará migrar a samber/do sin cambiar las firmas de constructores.
+
+### ADR-13: Repository Pattern sobre sqlc
+**Decisión:** Cada feature expone una interfaz de repositorio (`OrderRepository`, `MerchantRepository`) implementada con sqlc generado.  
+**Justificación:**
+- sqlc genera código SQL tipado en compile time, eliminando ORMs y reflexión.
+- Las interfaces de repositorio desacoplan la lógica de negocio (services) de la infraestructura PostgreSQL.
+- Permite testear services con mocks de repositorios, sin necesidad de base de datos real.
+- Las transacciones se manejan explícitamente pasando `*sql.Tx` a las implementaciones sqlc.
+
+### ADR-14: Deployment Unificado API+Worker (MVP) con Separación Lógica
+**Decisión:** Un solo binary (`cmd/api`) ejecuta API HTTP y scheduler de sincronización. El código del sync engine vive en `internal/sync/` diseñado como componente independiente.  
+**Justificación:**
+- Reduce complejidad operativa en local: un solo `docker compose up` levanta todo.
+- `cmd/worker/` existe como entrypoint futuro; cuando se migre a DigitalOcean se puede desplegar como contenedor separado sin modificar `internal/sync/`.
+- El scheduler usa su propio `context.Context` con cancelación para permitir graceful shutdown del sync sin afectar requests HTTP activos.
 
 ---
 

@@ -11,8 +11,9 @@ import (
 
 // Client is a generic HTTP client for the Clover API.
 type Client struct {
-	httpClient *http.Client
-	baseURL    string
+	httpClient   *http.Client
+	baseURL      string
+	rateLimiter  *RateLimiter
 }
 
 // NewClient creates a Clover API client for the given environment.
@@ -32,15 +33,17 @@ func NewClient(env string) *Client {
 		httpClient: &http.Client{
 			Timeout: 30 * time.Second,
 		},
-		baseURL: baseURL,
+		baseURL:     baseURL,
+		rateLimiter: NewRateLimiter(),
 	}
 }
 
 // WithTimeout returns a new client with the specified timeout.
 func (c *Client) WithTimeout(timeout time.Duration) *Client {
 	return &Client{
-		httpClient: &http.Client{Timeout: timeout},
-		baseURL:    c.baseURL,
+		httpClient:  &http.Client{Timeout: timeout},
+		baseURL:     c.baseURL,
+		rateLimiter: c.rateLimiter,
 	}
 }
 
@@ -81,7 +84,7 @@ func (c *Client) doRequest(ctx context.Context, method, path, token string, body
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Accept", "application/json")
 
-	resp, err := c.httpClient.Do(req)
+	resp, err := c.rateLimiter.Do(c.httpClient, req)
 	if err != nil {
 		return nil, fmt.Errorf("execute request: %w", err)
 	}

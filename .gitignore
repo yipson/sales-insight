@@ -43,3 +43,6 @@ coverage/
 # Temporal
 tmp/
 temp/
+
+# Otros
+docs/proposal/

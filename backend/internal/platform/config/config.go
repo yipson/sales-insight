@@ -3,65 +3,87 @@ package config
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 
+	"github.com/joho/godotenv"
 	"github.com/spf13/viper"
 )
 
 // Config holds all application configuration.
 type Config struct {
-	Database   DatabaseConfig   `mapstructure:",squash"`
-	Clover     CloverConfig     `mapstructure:",squash"`
-	Server     ServerConfig     `mapstructure:",squash"`
-	Security   SecurityConfig   `mapstructure:",squash"`
-	AppEnv     string           `mapstructure:"APP_ENV"`
+	Database DatabaseConfig
+	Clover   CloverConfig
+	Server   ServerConfig
+	Security SecurityConfig
+	AppEnv   string
 }
 
 // DatabaseConfig holds PostgreSQL connection parameters.
 type DatabaseConfig struct {
-	Host         string `mapstructure:"DB_HOST"`
-	Port         string `mapstructure:"DB_PORT"`
-	User         string `mapstructure:"DB_USER"`
-	Password     string `mapstructure:"DB_PASSWORD"`
-	Database     string `mapstructure:"DB_NAME"`
-	SSLMode      string `mapstructure:"DB_SSL_MODE"`
-	MaxOpenConns int    `mapstructure:"DB_MAX_OPEN_CONNS"`
-	MaxIdleConns int    `mapstructure:"DB_MAX_IDLE_CONNS"`
+	Host         string
+	Port         string
+	User         string
+	Password     string
+	Database     string
+	SSLMode      string
+	MaxOpenConns int
+	MaxIdleConns int
 }
 
 // CloverConfig holds Clover API credentials.
 type CloverConfig struct {
-	ClientID     string `mapstructure:"CLOVER_CLIENT_ID"`
-	ClientSecret string `mapstructure:"CLOVER_CLIENT_SECRET"`
-	Env          string `mapstructure:"CLOVER_ENV"`
+	ClientID     string
+	ClientSecret string
+	Env          string
 }
 
 // ServerConfig holds HTTP server settings.
 type ServerConfig struct {
-	Port        string `mapstructure:"API_PORT"`
-	FrontendURL string `mapstructure:"FRONTEND_URL"`
+	Port        string
+	FrontendURL string
 }
 
 // SecurityConfig holds encryption and JWT secrets.
 type SecurityConfig struct {
-	EncryptionKey string `mapstructure:"ENCRYPTION_KEY"`
-	JWTSecret     string `mapstructure:"JWT_SECRET"`
+	EncryptionKey string
+	JWTSecret     string
+}
+
+// findEnvFile searches for .env starting from the current working directory
+// and walking up the directory tree until found or reaching the root.
+func findEnvFile() (string, bool) {
+	wd, err := os.Getwd()
+	if err != nil {
+		return "", false
+	}
+
+	for {
+		candidate := filepath.Join(wd, ".env")
+		if _, err := os.Stat(candidate); err == nil {
+			return candidate, true
+		}
+
+		parent := filepath.Dir(wd)
+		if parent == wd {
+			break // reached root
+		}
+		wd = parent
+	}
+	return "", false
 }
 
 // Load reads configuration from .env file first, then environment variables.
 // In development, .env is the primary source. Environment variables can override.
 func Load() (*Config, error) {
-	v := viper.New()
-
-	// Read from .env file (primary source for local development)
-	v.SetConfigFile(".env")
-	v.SetConfigType("env")
-	if err := v.ReadInConfig(); err != nil {
-		// Only fail if .env exists but is unreadable; if missing, rely on env vars
-		if !os.IsNotExist(err) {
-			return nil, fmt.Errorf("read .env: %w", err)
+	// Load .env file into environment variables (development default)
+	if envPath, found := findEnvFile(); found {
+		if err := godotenv.Load(envPath); err != nil {
+			return nil, fmt.Errorf("read .env at %s: %w", envPath, err)
 		}
 	}
+
+	v := viper.New()
 
 	// Environment variables override .env values
 	v.SetEnvPrefix("") // no prefix
@@ -71,9 +93,32 @@ func Load() (*Config, error) {
 	// Defaults
 	setDefaults(v)
 
-	var cfg Config
-	if err := v.Unmarshal(&cfg); err != nil {
-		return nil, fmt.Errorf("unmarshal config: %w", err)
+	// Manual mapping — more reliable than Unmarshal with squash
+	cfg := Config{
+		Database: DatabaseConfig{
+			Host:         v.GetString("DB_HOST"),
+			Port:         v.GetString("DB_PORT"),
+			User:         v.GetString("DB_USER"),
+			Password:     v.GetString("DB_PASSWORD"),
+			Database:     v.GetString("DB_NAME"),
+			SSLMode:      v.GetString("DB_SSL_MODE"),
+			MaxOpenConns: v.GetInt("DB_MAX_OPEN_CONNS"),
+			MaxIdleConns: v.GetInt("DB_MAX_IDLE_CONNS"),
+		},
+		Clover: CloverConfig{
+			ClientID:     v.GetString("CLOVER_CLIENT_ID"),
+			ClientSecret: v.GetString("CLOVER_CLIENT_SECRET"),
+			Env:          v.GetString("CLOVER_ENV"),
+		},
+		Server: ServerConfig{
+			Port:        v.GetString("API_PORT"),
+			FrontendURL: v.GetString("FRONTEND_URL"),
+		},
+		Security: SecurityConfig{
+			EncryptionKey: v.GetString("ENCRYPTION_KEY"),
+			JWTSecret:     v.GetString("JWT_SECRET"),
+		},
+		AppEnv: v.GetString("APP_ENV"),
 	}
 
 	if err := cfg.Validate(); err != nil {

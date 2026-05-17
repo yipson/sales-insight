@@ -13,11 +13,14 @@ import (
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
 
+	"github.com/sales-insight/backend/internal/auth"
+	"github.com/sales-insight/backend/internal/clover"
 	"github.com/sales-insight/backend/internal/merchant"
 	"github.com/sales-insight/backend/internal/platform/config"
 	"github.com/sales-insight/backend/internal/platform/db"
 	"github.com/sales-insight/backend/internal/platform/logger"
 	"github.com/sales-insight/backend/internal/platform/security"
+	"github.com/sales-insight/backend/internal/token_cache"
 )
 
 func main() {
@@ -53,7 +56,25 @@ func main() {
 	// 6. Services
 	merchantSvc := merchant.NewService(merchantRepo)
 
-	// 7. HTTP Server
+	// 7. Auth & Clover
+	tokenCache := tokencache.NewCache()
+	oauthClient := clover.NewOAuthClient(cfg.Clover.Env)
+	authService := auth.NewService(
+		oauthClient,
+		merchantRepo,
+		encrypter,
+		tokenCache,
+		cfg.Clover.ClientID,
+		cfg.Clover.ClientSecret,
+	)
+	authHandler := auth.NewHandler(authService, merchantSvc, oauthClient, cfg.Clover.ClientID, cfg.Server.FrontendURL)
+
+	// 8. Rebuild token cache from DB on startup
+	if err := authService.RebuildCache(context.Background()); err != nil {
+		log.Warn("failed to rebuild token cache", slog.String("error", err.Error()))
+	}
+
+	// 9. HTTP Server
 	e := echo.New()
 	e.HideBanner = true
 	e.Use(middleware.Recover())
@@ -76,6 +97,9 @@ func main() {
 	// Merchant routes
 	merchantHandler := merchant.NewHandler(merchantSvc)
 	merchantHandler.RegisterRoutes(v1)
+
+	// Auth routes
+	authHandler.RegisterRoutes(v1)
 
 	// Start server in a goroutine
 	go func() {

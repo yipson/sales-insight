@@ -16,6 +16,7 @@ import (
 	"github.com/sales-insight/backend/internal/auth"
 	"github.com/sales-insight/backend/internal/clover"
 	"github.com/sales-insight/backend/internal/merchant"
+	"github.com/sales-insight/backend/internal/merchant/sqlc"
 	"github.com/sales-insight/backend/internal/platform/config"
 	"github.com/sales-insight/backend/internal/platform/db"
 	"github.com/sales-insight/backend/internal/platform/logger"
@@ -51,7 +52,7 @@ func main() {
 	}
 
 	// 5. Repositories
-	merchantRepo := merchant.NewSQLRepository(postgres.DB, encrypter)
+	merchantRepo := sqlc.NewSQLCRepository(postgres.DB, encrypter)
 
 	// 6. Services
 	merchantSvc := merchant.NewService(merchantRepo)

@@ -15,12 +15,18 @@ import (
 
 	"github.com/sales-insight/backend/internal/auth"
 	"github.com/sales-insight/backend/internal/clover"
+	"github.com/sales-insight/backend/internal/employees"
 	"github.com/sales-insight/backend/internal/merchant"
 	"github.com/sales-insight/backend/internal/merchant/sqlc"
+	"github.com/sales-insight/backend/internal/orders"
+	"github.com/sales-insight/backend/internal/payments"
 	"github.com/sales-insight/backend/internal/platform/config"
 	"github.com/sales-insight/backend/internal/platform/db"
 	"github.com/sales-insight/backend/internal/platform/logger"
+	"github.com/sales-insight/backend/internal/platform/scheduler"
 	"github.com/sales-insight/backend/internal/platform/security"
+	"github.com/sales-insight/backend/internal/products"
+	"github.com/sales-insight/backend/internal/sync"
 	"github.com/sales-insight/backend/internal/token_cache"
 )
 
@@ -75,7 +81,26 @@ func main() {
 		log.Warn("failed to rebuild token cache", slog.String("error", err.Error()))
 	}
 
-	// 9. HTTP Server
+	// 9. Sync Engine & Scheduler
+	cloverClient := clover.NewClient(cfg.Clover.Env)
+	syncEngine := sync.NewEngine(
+		cloverClient,
+		tokenCache,
+		merchantRepo,
+		orders.NewStubRepository(),
+		orders.NewStubOrderItemRepository(),
+		orders.NewStubCategorySummaryRepository(),
+		products.NewStubProductRepository(),
+		products.NewStubCategoryRepository(),
+		employees.NewStubRepository(),
+		payments.NewStubRepository(),
+	)
+	syncEngine.SetBatchSize(100)
+
+	cronScheduler := scheduler.NewScheduler(syncEngine, merchantRepo, log)
+	cronScheduler.Start(context.Background())
+
+	// 10. HTTP Server
 	e := echo.New()
 	e.HideBanner = true
 	e.Use(middleware.Recover())
@@ -117,6 +142,9 @@ func main() {
 	<-quit
 
 	log.Info("shutting down server")
+
+	// Stop scheduler before shutting down HTTP server
+	cronScheduler.Stop()
 
 	if cfg.AppEnv == "development" {
 		// In development, close immediately to free the port right away

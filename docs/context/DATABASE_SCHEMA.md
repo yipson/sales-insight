@@ -8,6 +8,11 @@
 **Migrations:** golang-migrate  
 **Acceso:** sqlc  
 
+> **Documentos relacionados:**
+> - [ESTADO_ACTUAL.md](./ESTADO_ACTUAL.md) — Estado actual de implementación
+> - [ARCHITECTURE.md](./ARCHITECTURE.md) — Arquitectura del sistema y stack tecnológico
+> - [implementacion-mvp.md](./implementacion-mvp.md) — Plan de implementación
+
 ---
 
 ## 1. Principios del Esquema

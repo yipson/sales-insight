@@ -9,6 +9,12 @@
 **Patrón:** Monolito desplegado en contenedores Docker  
 **Locales (MVP):** 1 (preparado para 15+)  
 
+> **Documentos relacionados:**
+> - [ESTADO_ACTUAL.md](./ESTADO_ACTUAL.md) — Estado actual de implementación y deuda técnica
+> - [AGENTS.md](../../AGENTS.md) — Guía rápida de desarrollo
+> - [implementacion-mvp.md](./implementacion-mvp.md) — Plan de implementación con checklists
+> - [DATABASE_SCHEMA.md](./DATABASE_SCHEMA.md) — Esquema de base de datos
+
 ---
 
 ## 1. Principios Arquitectónicos

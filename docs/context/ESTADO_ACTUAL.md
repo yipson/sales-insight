@@ -11,7 +11,7 @@
 El backend ha sido completamente reconstruido con arquitectura **feature-based**, **DI manual** y **repository pattern sobre sqlc**. Las Fases 1, 2 y 3 del MVP están implementadas y compilando. La Fase 4 (implementaciones sqlc de dominio) y Fase 5 (Dashboard API) están pendientes.
 
 **Estado de compilación:** ✅ `go build ./cmd/api/` funciona  
-**Estado de tests:** ✅ `go test ./...` pasa (tests unitarios con mocks)  
+**Estado de tests:** ✅ `go test ./...` pasa (tests unitarios con mocks en `merchant/`, otros packages pendientes de tests)  
 **Servidor arranca:** ✅ Lee `.env` desde cualquier directorio  
 
 ---
@@ -27,7 +27,7 @@ backend/
 ├── internal/
 │   ├── platform/      # Infra transversal (sin lógica de negocio)
 │   │   ├── config/    # Viper + godotenv (lectura manual, no Unmarshal)
-│   │   ├── db/        # PostgreSQL pool
+│   │   ├── db/        # PostgreSQL pool (postgres.go)
 │   │   ├── logger/    # slog estructurado
 │   │   ├── scheduler/ # Wrapper robfig/cron/v3
 │   │   └── security/  # AES-256-GCM
@@ -59,7 +59,7 @@ backend/
 │   │   ├── employees.go # Extracción empleados
 │   │   ├── payments.go  # Extracción pagos
 │   │   └── transform.go # Utilidades de normalización
-│   ├── analytics/     # Feature: vacío (Fase 5)
+│   ├── analytics/     # Feature: vacío, solo sqlc/ placeholder (Fase 5)
 │   ├── dashboard/     # Feature: vacío (Fase 5)
 │   └── token_cache/   # Cache en memoria de tokens
 ├── migrations/        # golang-migrate
@@ -158,68 +158,17 @@ feature/
 
 ---
 
-## 5. Estado de Implementación por Fase
+## 5. Estado de Implementación
 
-### ✅ Fase 1: Plataforma + Merchant (COMPLETADA)
-- [x] Layout feature-based
-- [x] `platform/config` — Viper + godotenv + lectura manual
-- [x] `platform/db` — PostgreSQL pool
-- [x] `platform/logger` — slog
-- [x] `platform/security` — AES-256-GCM
-- [x] `cmd/api/main.go` — DI manual + graceful shutdown
-- [x] `sqlc.yaml` — Configuración por feature
-- [x] `merchant/` — Feature completo con sqlc generado
-  - [x] Modelos, interfaz, service, handler, tests con mocks
-  - [x] `merchant/sqlc/queries.sql` + código generado
-  - [x] `merchant/sqlc/repository.go` — wrapper que implementa interfaz
+Para el plan detallado de implementación con checklists por fase, ver:
+**[implementacion-mvp.md](./implementacion-mvp.md)**
 
-### ✅ Fase 2: Cliente Clover + Autenticación (COMPLETADA)
-- [x] `clover/client.go` — REST API client con rate limiter
-- [x] `clover/oauth_client.go` — OAuth endpoints separados
-- [x] `clover/dto.go` — Structs de respuesta
-- [x] `clover/rate_limiter.go` — Token bucket + semaphore + retry 429
-- [x] `token_cache/cache.go` — Cache en memoria con RWMutex
-- [x] `auth/service.go` — HandleCallback, RefreshAccessToken, RebuildCache
-- [x] `auth/handler.go` — OAuth, bootstrap, status, revoke
-- [x] `auth/middleware.go` — JWT validation
-- [x] `cmd/api/main.go` — Wire auth + rebuild cache al iniciar
+Este documento se enfoca en el estado técnico actual, decisiones arquitectónicas 
+y deuda técnica. El plan de ejecución vive centralizado en implementacion-mvp.md.
 
-### ✅ Fase 3: Sync Engine (COMPLETADA)
-- [x] Domain models + interfaces: `orders/`, `products/`, `employees/`, `payments/`
-- [x] `sync/engine.go` — Orquestador con DI
-- [x] `sync/orders.go` — Extracción incremental con cursor
-- [x] `sync/items.go` — Extracción productos/categorías
-- [x] `sync/employees.go` — Extracción empleados
-- [x] `sync/payments.go` — Extracción pagos incremental
-- [x] `sync/transform.go` — Normalización de datos
-- [x] `platform/scheduler/cron.go` — Cron con frecuencias
-- [x] Stub repositories para features no implementadas
-- [x] `cmd/api/main.go` — Wire engine + scheduler
-
-### ⏳ Fase 4: Implementaciones sqlc de Dominio (PENDIENTE)
-- [ ] `orders/sqlc/queries.sql` + `sqlc/repository.go`
-- [ ] `products/sqlc/queries.sql` + `sqlc/repository.go`
-- [ ] `employees/sqlc/queries.sql` + `sqlc/repository.go`
-- [ ] `payments/sqlc/queries.sql` + `sqlc/repository.go`
-- [ ] Eliminar stub repositories
-- [ ] Implementar `sync_logs` y `sync_errors` repositories
-- [ ] Actualizar `sqlc.yaml` con todas las queries
-
-### ⏳ Fase 5: Dashboard API (PENDIENTE)
-- [ ] `analytics/` — Queries agregadas (KPIs, rankings)
-- [ ] `dashboard/` — Service que orquesta analytics
-- [ ] `dashboard/handler.go` — Endpoints del dashboard
-
-### ⏳ Fase 6: Integración y Validación (PENDIENTE)
-- [ ] `docker-compose.yml` actualizado
-- [ ] Flujo OAuth end-to-end
-- [ ] Primera sincronización real
-- [ ] Validación de métricas
-
-### ⏳ Fase 7: Frontend (PENDIENTE)
-- [ ] React + Vite + Tailwind
-- [ ] Apache ECharts
-- [ ] TanStack Query
+Resumen de fases:
+- ✅ **Fases 1-3 completadas:** Plataforma, Merchant, Clover Client, Auth, Sync Engine
+- ⏳ **Fases 4-7 pendientes:** sqlc de dominio, Dashboard API, Integración, Frontend
 
 ---
 
@@ -247,7 +196,7 @@ feature/
 
 ### Archivos de referencia obligatorios:
 - `docs/context/ARCHITECTURE.md` — Arquitectura del sistema
-- `implementacion/implementacion-mvp.md` — Plan detallado con checklist
+- `implementacion-mvp.md` — Plan detallado con checklist
 - `backend/migrations/001_initial_schema.up.sql` — Schema de base de datos
 - `backend/.env.example` — Variables de entorno
 

@@ -4,7 +4,7 @@
 
 Monorepo: Go backend (API + sync engine) + React/Vite frontend. Docker Compose is the primary dev environment. PostgreSQL 15 is the only external dependency.
 
-**Key docs:** `docs/context/ESTADO_ACTUAL.md` (current state), `docs/context/ARCHITECTURE.md` (full architecture). Read `ESTADO_ACTUAL.md` before starting any work.
+**Key docs:** `docs/context/ESTADO_ACTUAL.md` (current state), `docs/context/ARCHITECTURE.md` (full architecture), `docs/context/implementacion-mvp.md` (implementation plan). Read `ESTADO_ACTUAL.md` before starting any work.
 
 ## Repository Structure
 
@@ -65,7 +65,11 @@ cd frontend && npm run build
    - `ENCRYPTION_KEY` must be exactly 32 characters.
    - `JWT_SECRET` is required.
    - `CLOVER_CLIENT_ID` / `CLOVER_CLIENT_SECRET` are needed for OAuth/sync.
-3. **Migrations:** Install `golang-migrate` CLI, then run migrations against `postgres://sales_insight:sales_insight_secret@localhost:5432/sales_insight?sslmode=disable`.
+3. **Migrations:** Install `golang-migrate` CLI, then run migrations:
+   ```bash
+   go install -tags 'postgres' github.com/golang-migrate/migrate/v4/cmd/migrate@latest
+   migrate -path backend/migrations -database "postgres://sales_insight:sales_insight_secret@localhost:5432/sales_insight?sslmode=disable" up
+   ```
 4. **Backend:** `cd backend && go run ./cmd/api`
 5. **Frontend:** `cd frontend && npm install && npm run dev`
 
@@ -80,8 +84,39 @@ cd frontend && npm run build
 ## Codegen
 
 - **sqlc:** Edit `internal/{feature}/sqlc/queries.sql`, then run `sqlc generate` in `backend/`. Generated files (`db.go`, `models.go`, `queries.sql.go`) are per-package and must not be hand-edited.
+
+**Example `queries.sql` for a new feature:**
+```sql
+-- name: GetRestaurant :one
+SELECT * FROM restaurants
+WHERE id = $1 LIMIT 1;
+
+-- name: ListRestaurants :many
+SELECT * FROM restaurants
+WHERE is_connected = true;
+
+-- name: UpdateRestaurant :exec
+UPDATE restaurants SET
+  name = $1,
+  updated_at = now()
+WHERE id = $2;
+```
+
+**Add a new entry in `sqlc.yaml`:**
+```yaml
+- path: "internal/products/sqlc"
+  queries: "internal/products/sqlc/queries.sql"
+  schema: "migrations/001_initial_schema.up.sql"
+  engine: "postgresql"
+  gen:
+    go:
+      package: "sqlc"
+      out: "internal/products/sqlc"
+      sql_package: "pgx/v5"
+```
+
 - **sqlc quirks:**
-  - `sqlc.yaml` reads schema from `migrations/`, so every package’s generated `models.go` contains structs for **all** tables, not just its own queries.
+  - `sqlc.yaml` reads schema from `migrations/`, so every package's generated `models.go` contains structs for **all** tables, not just its own queries.
   - Each package also gets its own `DBTX` interface (`db.go`). This is expected duplication.
 
 ## Known State / Deuda Técnica

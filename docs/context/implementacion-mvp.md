@@ -228,38 +228,52 @@
 ## Fase 4: Features de API REST (Dominio)
 **Objetivo:** Endpoints CRUD y listados para employees, products/categories y orders.
 
-- [ ] **4.1 Implementar feature `employees/` completo**
+- [x] **4.1 Implementar feature `employees/` completo**
   - `employees/sqlc/queries.sql` + `employees/sqlc/repository.go`
   - `employees/service.go` + `employees/handler.go`
-  - Endpoints: `GET /api/v1/employees`, `GET /api/v1/employees/:id`, `GET /api/v1/employees/:id/orders`
+  - Endpoints: `GET /api/v1/employees`, `GET /api/v1/employees/:id`, `GET /api/v1/employees/:id/orders` (delega a orders.Service)
   - `employees/service_test.go` con mocks
 
-- [ ] **4.2 Implementar feature `products/` completo**
-  - `products/sqlc/queries.sql` (CRUD productos + categorías nativas/analíticas)
+- [x] **4.2 Implementar feature `products/` completo**
+  - `products/sqlc/queries.sql` (CRUD productos + categorías nativas/analíticas + mappings)
   - `products/sqlc/repository.go`
   - `products/service.go` + `products/handler.go`
-  - Endpoints: `GET /api/v1/products`, `GET /api/v1/products/top`, `GET /api/v1/products/categories`
+  - Endpoints: `GET /api/v1/products`, `GET /api/v1/products/:id`, `GET /api/v1/products/categories`
   - Endpoints admin: `PUT /api/v1/products/categories/:id/map`, `POST /api/v1/analytic-categories`, `PUT /api/v1/analytic-categories/:id`, `DELETE /api/v1/analytic-categories/:id`
   - `products/service_test.go`
+  - Nota: `GET /api/v1/products/top` queda pendiente (requiere order_items analytics, ver 4.4)
 
-- [ ] **4.3 Implementar feature `orders/` completo**
-  - `orders/sqlc/queries.sql` (CRUD + agregaciones por fecha)
-  - `orders/sqlc/repository.go`
+- [x] **4.3 Implementar feature `orders/` completo**
+  - `orders/sqlc/queries.sql` (CRUD + upsert con ON CONFLICT)
+  - `orders/sqlc/repository.go` (3 repos separados para evitar colisión de nombres de métodos)
   - `orders/service.go` + `orders/handler.go`
-  - Endpoints: `GET /api/v1/orders`, `GET /api/v1/orders/:id` (con líneas)
+  - Endpoints: `GET /api/v1/orders`, `GET /api/v1/orders/:id` (devuelve OrderDetail con items + category_summary)
   - `orders/service_test.go`
 
-- [ ] **4.4 Implementar feature `analytics/` completo**
+- [x] **4.4 Implementar feature `analytics/` completo**
+  - `analytics/model.go` — structs de KPIs
   - `analytics/repository.go` — interfaz para queries agregadas
-  - `analytics/sqlc/queries.sql` — KPIs, rankings, cobertura de categorías
-  - `analytics/service.go` — cálculo de métricas, ticket ideal
-  - Sin handlers propios; consumido por `dashboard.Service`
+  - `analytics/sqlc/queries.sql` — 6 queries agregadas (summary, sales-by-employee, top-products, category-coverage, count-categories, ticket-ideal-breakdown)
+  - `analytics/sqlc/repository.go` — implementación sqlc
+  - `analytics/service.go` — orquesta queries + cálculo de cobertura % y ticket ideal
+  - `analytics/service_test.go` — mocks + tests
+  - Sin handlers propios; consumido por `dashboard.Service` (Fase 5)
 
-- [ ] **4.5 Actualizar `cmd/api/main.go`**
-  - Wire todos los nuevos repositories, services y handlers
-  - Registrar rutas en Echo
+- [x] **4.5 Implementar feature `payments/` completo**
+  - `payments/sqlc/queries.sql` — upsert + lookups
+  - `payments/sqlc/repository.go` — implementación sqlc
+  - `payments/service.go` — lógica de negocio (para sync y API)
+  - `payments/service_test.go` — mocks + tests
+  - Reemplaza stub en sync engine; el pipeline de persistencia de pagos queda 100% funcional
 
-**Commit sugerido:** `feat: API REST features employees, products, orders y analytics`
+- [x] **4.6 Actualizar `cmd/api/main.go` y eliminar stubs**
+  - Wire de repos reales: employees, products (4 structs), orders (3 structs), analytics, payments
+  - Wire de services: orderSvc → employeeSvc (delegación), productSvc, analyticsSvc
+  - Registro de handlers en Echo: employees, products, orders
+  - Sync engine usa repos reales de todos los dominios
+  - **Limpieza:** Eliminados archivos `stub.go` de employees, products, orders, payments
+
+**Commit sugerido:** `feat: API REST employees, products, orders, analytics y payments; wire real repos + eliminar stubs`
 
 ---
 

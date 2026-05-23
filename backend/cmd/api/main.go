@@ -13,19 +13,24 @@ import (
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
 
+	"github.com/sales-insight/backend/internal/analytics"
+	analyticssqlc "github.com/sales-insight/backend/internal/analytics/sqlc"
 	"github.com/sales-insight/backend/internal/auth"
 	"github.com/sales-insight/backend/internal/clover"
 	"github.com/sales-insight/backend/internal/employees"
+	employeessqlc "github.com/sales-insight/backend/internal/employees/sqlc"
 	"github.com/sales-insight/backend/internal/merchant"
-	"github.com/sales-insight/backend/internal/merchant/sqlc"
+	merchantsqlc "github.com/sales-insight/backend/internal/merchant/sqlc"
 	"github.com/sales-insight/backend/internal/orders"
-	"github.com/sales-insight/backend/internal/payments"
+	orderssqlc "github.com/sales-insight/backend/internal/orders/sqlc"
+	paymentssqlc "github.com/sales-insight/backend/internal/payments/sqlc"
 	"github.com/sales-insight/backend/internal/platform/config"
 	"github.com/sales-insight/backend/internal/platform/db"
 	"github.com/sales-insight/backend/internal/platform/logger"
 	"github.com/sales-insight/backend/internal/platform/scheduler"
 	"github.com/sales-insight/backend/internal/platform/security"
 	"github.com/sales-insight/backend/internal/products"
+	productssqlc "github.com/sales-insight/backend/internal/products/sqlc"
 	"github.com/sales-insight/backend/internal/sync"
 	"github.com/sales-insight/backend/internal/token_cache"
 )
@@ -58,10 +63,25 @@ func main() {
 	}
 
 	// 5. Repositories
-	merchantRepo := sqlc.NewSQLCRepository(postgres.DB, encrypter)
+	merchantRepo := merchantsqlc.NewSQLCRepository(postgres.DB, encrypter)
+	employeeRepo := employeessqlc.NewSQLCRepository(postgres.DB)
+	productRepo := productssqlc.NewProductSQLCRepository(postgres.DB)
+	categoryRepo := productssqlc.NewCategorySQLCRepository(postgres.DB)
+	analyticCategoryRepo := productssqlc.NewAnalyticCategorySQLCRepository(postgres.DB)
+	mappingRepo := productssqlc.NewCategoryMappingSQLCRepository(postgres.DB)
+	orderRepo := orderssqlc.NewOrderSQLCRepository(postgres.DB)
+	orderItemRepo := orderssqlc.NewOrderItemSQLCRepository(postgres.DB)
+	categorySummaryRepo := orderssqlc.NewCategorySummarySQLCRepository(postgres.DB)
+	paymentRepo := paymentssqlc.NewSQLCRepository(postgres.DB)
+	analyticsRepo := analyticssqlc.NewSQLCRepository(postgres.DB)
 
 	// 6. Services
 	merchantSvc := merchant.NewService(merchantRepo)
+	orderSvc := orders.NewService(orderRepo, orderItemRepo, categorySummaryRepo)
+	employeeSvc := employees.NewService(employeeRepo, orderSvc)
+	productSvc := products.NewService(productRepo, categoryRepo, analyticCategoryRepo, mappingRepo)
+	// analyticsSvc will be wired into dashboard.Service in Phase 5
+	_ = analytics.NewService(analyticsRepo)
 
 	// 7. Auth & Clover
 	tokenCache := tokencache.NewCache()
@@ -83,17 +103,17 @@ func main() {
 
 	// 9. Sync Engine & Scheduler
 	cloverClient := clover.NewClient(cfg.Clover.Env)
-	syncEngine := sync.NewEngine(
+		syncEngine := sync.NewEngine(
 		cloverClient,
 		tokenCache,
 		merchantRepo,
-		orders.NewStubRepository(),
-		orders.NewStubOrderItemRepository(),
-		orders.NewStubCategorySummaryRepository(),
-		products.NewStubProductRepository(),
-		products.NewStubCategoryRepository(),
-		employees.NewStubRepository(),
-		payments.NewStubRepository(),
+		orderRepo,
+		orderItemRepo,
+		categorySummaryRepo,
+		productRepo,
+		categoryRepo,
+		employeeRepo,
+		paymentRepo,
 	)
 	syncEngine.SetBatchSize(100)
 
@@ -123,6 +143,18 @@ func main() {
 	// Merchant routes
 	merchantHandler := merchant.NewHandler(merchantSvc)
 	merchantHandler.RegisterRoutes(v1)
+
+	// Employee routes
+	employeeHandler := employees.NewHandler(employeeSvc)
+	employeeHandler.RegisterRoutes(v1)
+
+	// Product routes
+	productHandler := products.NewHandler(productSvc)
+	productHandler.RegisterRoutes(v1)
+
+	// Order routes
+	orderHandler := orders.NewHandler(orderSvc)
+	orderHandler.RegisterRoutes(v1)
 
 	// Auth routes
 	authHandler.RegisterRoutes(v1)

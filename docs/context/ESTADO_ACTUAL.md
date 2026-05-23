@@ -1,17 +1,17 @@
 # Estado Actual del Proyecto — Sales Insight Backend
 
-**Última actualización:** 2026-05-19  
-**Sesión:** Refactorización arquitectónica + Fases 1-3 implementadas  
+**Última actualización:** 2026-05-22  
+**Sesión:** Sincronización de documentación con estado real del código (Fases 1-5 implementadas)  
 **Branch:** `development`  
 
 ---
 
 ## 1. Resumen Ejecutivo
 
-El backend ha sido completamente reconstruido con arquitectura **feature-based**, **DI manual** y **repository pattern sobre sqlc**. Las Fases 1, 2 y 3 del MVP están implementadas y compilando. La Fase 4 (implementaciones sqlc de dominio) y Fase 5 (Dashboard API) están pendientes.
+El backend ha sido completamente reconstruido con arquitectura **feature-based**, **DI manual** y **repository pattern sobre sqlc**. Las Fases 1 a 5 del MVP están implementadas, compilando y con tests pasando. Las Fases 6 (Frontend React) y 7 (Integración / Docker Compose) están pendientes.
 
 **Estado de compilación:** ✅ `go build ./cmd/api/` funciona  
-**Estado de tests:** ✅ `go test ./...` pasa (tests unitarios con mocks en `merchant/`, otros packages pendientes de tests)  
+**Estado de tests:** ✅ `go test ./...` pasa (tests unitarios con mocks en: `merchant/`, `analytics/`, `dashboard/`, `employees/`, `orders/`, `payments/`, `products/`; packages `platform/*`, `auth/`, `clover/`, `sync/`, `token_cache/` pendientes de tests)  
 **Servidor arranca:** ✅ Lee `.env` desde cualquier directorio  
 
 ---
@@ -47,20 +47,24 @@ backend/
 │   │       ├── models.go        # GENERADO (no tocar)
 │   │       ├── queries.sql.go   # GENERADO (no tocar)
 │   │       └── repository.go    # Wrapper manual → implementa interfaz
-│   ├── orders/        # Feature: solo modelos + interfaz + stub
-│   ├── products/      # Feature: solo modelos + interfaz + stub
-│   ├── employees/     # Feature: solo modelos + interfaz + stub
-│   ├── payments/      # Feature: solo modelos + interfaz + stub
+│   ├── orders/        # Feature completo (modelo + interfaz + sqlc + service + handler + tests)
+│   ├── products/      # Feature completo (modelo + interfaz + sqlc + service + handler + tests)
+│   ├── employees/     # Feature completo (modelo + interfaz + sqlc + service + handler + tests)
+│   ├── payments/      # Feature completo (modelo + interfaz + sqlc + service + tests)
 │   ├── auth/          # Feature completo (OAuth + JWT middleware)
-│   ├── sync/          # Engine de sincronización
+│   ├── sync/          # Engine de sincronización + API de status
 │   │   ├── engine.go    # Orquestador con DI
 │   │   ├── orders.go    # Extracción incremental
 │   │   ├── items.go     # Extracción productos/categorías
 │   │   ├── employees.go # Extracción empleados
 │   │   ├── payments.go  # Extracción pagos
-│   │   └── transform.go # Utilidades de normalización
-│   ├── analytics/     # Feature: vacío, solo sqlc/ placeholder (Fase 5)
-│   ├── dashboard/     # Feature: vacío (Fase 5)
+│   │   ├── transform.go # Utilidades de normalización
+│   │   ├── model.go     # Structs Log, Error, SyncEntity
+│   │   ├── repository.go # Interfaces LogRepository, ErrorRepository
+│   │   ├── handler.go   # Endpoints /sync/status, /sync/logs, /sync/trigger, /sync/errors
+│   │   └── sqlc/        # Implementación sqlc de sync logs y errors
+│   ├── analytics/     # Feature completo (modelo + interfaz + sqlc + service + tests; sin handler propio)
+│   ├── dashboard/     # Feature completo (modelo + service + handler + tests; orquesta analytics)
 │   └── token_cache/   # Cache en memoria de tokens
 ├── migrations/        # golang-migrate
 ├── sqlc.yaml          # Configuración por feature
@@ -108,18 +112,15 @@ feature/
 | D7 | JWT para sesiones de dashboard | Clover es el IdP, nosotros generamos JWT interno | `auth/middleware.go` |
 | D8 | Config loader con godotenv + búsqueda recursiva | Viper Unmarshal con squash no funciona con env vars | `platform/config/config.go` |
 | D9 | Graceful shutdown: `e.Close()` en dev, `e.Shutdown()` en prod | Evita TIME_WAIT problemático en desarrollo | `cmd/api/main.go` |
-| D10 | Stub repositories para features no implementadas | Permite compilar el sync engine sin sqlc completo | `orders/stub.go`, `products/stub.go`, etc. |
+| D10 | ~~Stub repositories para features no implementadas~~ *(resuelto en Fase 4)* | ~~Permitía compilar el sync engine sin sqlc completo~~ | ~~`orders/stub.go`, etc.~~ — **Eliminados** |
 
 ---
 
 ## 4. Correcciones Temporales (Deuda Técnica)
 
-### CT1: Stub repositories en dominio
-**Ubicación:** `orders/stub.go`, `products/stub.go`, `employees/stub.go`, `payments/stub.go`  
-**Problema:** El sync engine necesita los repositories para compilar, pero las implementaciones sqlc de estos features no existen todavía.  
-**Solución temporal:** Stub repositories que devuelven `ErrNotImplemented`.  
-**Cuándo corregir:** Fase 4 — crear `queries.sql` + `sqlc generate` + `sqlc/repository.go` para cada feature, luego eliminar stubs.  
-**Impacto:** El scheduler intentará ejecutar sync pero fallará silenciosamente (los stubs devuelven error, el scheduler loguea y continúa).
+### ~~CT1: Stub repositories en dominio~~ ✅ RESUELTO
+**Ubicación:** ~~`orders/stub.go`, `products/stub.go`, `employees/stub.go`, `payments/stub.go`~~  
+**Estado:** Resuelto en Fase 4. Todos los features de dominio (`orders`, `products`, `employees`, `payments`, `analytics`, `sync`) ahora tienen implementaciones sqlc reales con modelos, queries, repositorios, servicios, handlers y tests. Los stubs fueron eliminados y `cmd/api/main.go` realiza el wiring de repos reales. El sync engine opera con implementaciones completas.
 
 ### CT2: `models.go` generado por sqlc tiene todas las tablas
 **Ubicación:** `merchant/sqlc/models.go`  
@@ -167,8 +168,8 @@ Este documento se enfoca en el estado técnico actual, decisiones arquitectónic
 y deuda técnica. El plan de ejecución vive centralizado en implementacion-mvp.md.
 
 Resumen de fases:
-- ✅ **Fases 1-3 completadas:** Plataforma, Merchant, Clover Client, Auth, Sync Engine
-- ⏳ **Fases 4-7 pendientes:** sqlc de dominio, Dashboard API, Integración, Frontend
+- ✅ **Fases 1-5 completadas:** Plataforma, Merchant, Clover Client, Auth, Sync Engine, sqlc de dominio (orders, products, employees, payments, analytics), Dashboard API + Sync Status
+- ⏳ **Fases 6-7 pendientes:** Frontend React + Integración / Docker Compose
 
 ---
 
@@ -186,8 +187,10 @@ Resumen de fases:
 3. Ejecutar `sqlc generate` desde `backend/`
 4. Crear `internal/{feature}/sqlc/repository.go` que implemente la interfaz del feature
    - Usar `toDomain()` y `fromDomain()` helpers (ver `merchant/sqlc/repository.go` como referencia)
-5. Reemplazar stub en `cmd/api/main.go` con la implementación real
-6. Ejecutar `go test ./...`
+5. Crear `internal/{feature}/service.go` e inyectar la interfaz del repositorio
+6. Crear `internal/{feature}/handler.go` con `RegisterRoutes()`
+7. Wirear el nuevo repositorio y service en `cmd/api/main.go`
+8. Ejecutar `go test ./...`
 
 ### Para agregar un nuevo endpoint HTTP:
 1. Modificar `feature/handler.go` con el nuevo método
@@ -230,13 +233,13 @@ sync.Engine
 ├── clover.Client (REST API)
 ├── token_cache.Cache
 ├── merchant.Repository
-├── orders.Repository (STUB)
-├── orders.OrderItemRepository (STUB)
-├── orders.CategorySummaryRepository (STUB)
-├── products.ProductRepository (STUB)
-├── products.CategoryRepository (STUB)
-├── employees.Repository (STUB)
-└── payments.Repository (STUB)
+├── orders.Repository
+├── orders.OrderItemRepository
+├── orders.CategorySummaryRepository
+├── products.ProductRepository
+├── products.CategoryRepository
+├── employees.Repository
+└── payments.Repository
 ```
 
 ---

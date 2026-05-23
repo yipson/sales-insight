@@ -12,6 +12,7 @@ type Repository interface {
 	GetByID(ctx context.Context, id uuid.UUID) (*Order, error)
 	GetByCloverOrderID(ctx context.Context, restaurantID uuid.UUID, cloverOrderID string) (*Order, error)
 	ListByRestaurantAndDate(ctx context.Context, restaurantID uuid.UUID, from, to time.Time) ([]Order, error)
+	ListByEmployee(ctx context.Context, employeeID uuid.UUID, from, to time.Time) ([]Order, error)
 	Upsert(ctx context.Context, order *Order) error
 	UpsertBatch(ctx context.Context, orders []Order) error
 	DeleteByCloverID(ctx context.Context, restaurantID uuid.UUID, cloverOrderID string) error

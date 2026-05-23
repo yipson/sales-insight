@@ -18,6 +18,7 @@ func NewStubRepository() *StubRepository { return &StubRepository{} }
 func (r *StubRepository) GetByID(ctx context.Context, id uuid.UUID) (*Order, error) { return nil, ErrNotImplemented }
 func (r *StubRepository) GetByCloverOrderID(ctx context.Context, restaurantID uuid.UUID, cloverOrderID string) (*Order, error) { return nil, ErrNotImplemented }
 func (r *StubRepository) ListByRestaurantAndDate(ctx context.Context, restaurantID uuid.UUID, from, to time.Time) ([]Order, error) { return nil, ErrNotImplemented }
+func (r *StubRepository) ListByEmployee(ctx context.Context, employeeID uuid.UUID, from, to time.Time) ([]Order, error) { return nil, ErrNotImplemented }
 func (r *StubRepository) Upsert(ctx context.Context, order *Order) error { return ErrNotImplemented }
 func (r *StubRepository) UpsertBatch(ctx context.Context, orders []Order) error { return ErrNotImplemented }
 func (r *StubRepository) DeleteByCloverID(ctx context.Context, restaurantID uuid.UUID, cloverOrderID string) error { return ErrNotImplemented }

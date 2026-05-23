@@ -9,20 +9,6 @@ import (
 	"github.com/sales-insight/backend/internal/products"
 )
 
-// SQLCRepository implements all product-related repositories using sqlc-generated code.
-type SQLCRepository struct {
-	db      *sql.DB
-	queries *Queries
-}
-
-// NewSQLCRepository creates a new sqlc-backed product repository.
-func NewSQLCRepository(db *sql.DB) *SQLCRepository {
-	return &SQLCRepository{
-		db:      db,
-		queries: New(db),
-	}
-}
-
 // ============================================================
 // Product helpers
 // ============================================================
@@ -81,8 +67,24 @@ func productFromDomain(p *products.Product) UpsertProductParams {
 	return params
 }
 
-// ProductRepository implementation
-func (r *SQLCRepository) GetByID(ctx context.Context, id uuid.UUID) (*products.Product, error) {
+// ============================================================
+// ProductSQLCRepository implements products.ProductRepository.
+// ============================================================
+
+type ProductSQLCRepository struct {
+	db      *sql.DB
+	queries *Queries
+}
+
+// NewProductSQLCRepository creates a new sqlc-backed product repository.
+func NewProductSQLCRepository(db *sql.DB) *ProductSQLCRepository {
+	return &ProductSQLCRepository{
+		db:      db,
+		queries: New(db),
+	}
+}
+
+func (r *ProductSQLCRepository) GetByID(ctx context.Context, id uuid.UUID) (*products.Product, error) {
 	row, err := r.queries.GetProductByID(ctx, id)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, nil
@@ -93,7 +95,7 @@ func (r *SQLCRepository) GetByID(ctx context.Context, id uuid.UUID) (*products.P
 	return productToDomain(row), nil
 }
 
-func (r *SQLCRepository) GetByCloverItemID(ctx context.Context, restaurantID uuid.UUID, cloverItemID string) (*products.Product, error) {
+func (r *ProductSQLCRepository) GetByCloverItemID(ctx context.Context, restaurantID uuid.UUID, cloverItemID string) (*products.Product, error) {
 	row, err := r.queries.GetProductByCloverItemID(ctx, GetProductByCloverItemIDParams{
 		RestaurantID: restaurantID,
 		CloverItemID: cloverItemID,
@@ -107,7 +109,7 @@ func (r *SQLCRepository) GetByCloverItemID(ctx context.Context, restaurantID uui
 	return productToDomain(row), nil
 }
 
-func (r *SQLCRepository) ListByRestaurant(ctx context.Context, restaurantID uuid.UUID) ([]products.Product, error) {
+func (r *ProductSQLCRepository) ListByRestaurant(ctx context.Context, restaurantID uuid.UUID) ([]products.Product, error) {
 	rows, err := r.queries.ListProductsByRestaurant(ctx, restaurantID)
 	if err != nil {
 		return nil, err
@@ -119,12 +121,12 @@ func (r *SQLCRepository) ListByRestaurant(ctx context.Context, restaurantID uuid
 	return out, nil
 }
 
-func (r *SQLCRepository) Upsert(ctx context.Context, product *products.Product) error {
+func (r *ProductSQLCRepository) Upsert(ctx context.Context, product *products.Product) error {
 	_, err := r.queries.UpsertProduct(ctx, productFromDomain(product))
 	return err
 }
 
-func (r *SQLCRepository) UpsertBatch(ctx context.Context, products []products.Product) error {
+func (r *ProductSQLCRepository) UpsertBatch(ctx context.Context, products []products.Product) error {
 	tx, err := r.db.BeginTx(ctx, nil)
 	if err != nil {
 		return err
@@ -140,7 +142,7 @@ func (r *SQLCRepository) UpsertBatch(ctx context.Context, products []products.Pr
 	return tx.Commit()
 }
 
-func (r *SQLCRepository) SoftDelete(ctx context.Context, id uuid.UUID) error {
+func (r *ProductSQLCRepository) SoftDelete(ctx context.Context, id uuid.UUID) error {
 	return r.queries.SoftDeleteProduct(ctx, id)
 }
 
@@ -181,8 +183,24 @@ func categoryFromDomain(c *products.Category) UpsertCategoryParams {
 	return params
 }
 
-// CategoryRepository implementation
-func (r *SQLCRepository) GetCategoryByID(ctx context.Context, id uuid.UUID) (*products.Category, error) {
+// ============================================================
+// CategorySQLCRepository implements products.CategoryRepository.
+// ============================================================
+
+type CategorySQLCRepository struct {
+	db      *sql.DB
+	queries *Queries
+}
+
+// NewCategorySQLCRepository creates a new sqlc-backed category repository.
+func NewCategorySQLCRepository(db *sql.DB) *CategorySQLCRepository {
+	return &CategorySQLCRepository{
+		db:      db,
+		queries: New(db),
+	}
+}
+
+func (r *CategorySQLCRepository) GetByID(ctx context.Context, id uuid.UUID) (*products.Category, error) {
 	row, err := r.queries.GetCategoryByID(ctx, id)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, nil
@@ -193,7 +211,7 @@ func (r *SQLCRepository) GetCategoryByID(ctx context.Context, id uuid.UUID) (*pr
 	return categoryToDomain(row), nil
 }
 
-func (r *SQLCRepository) GetByCloverCategoryID(ctx context.Context, restaurantID uuid.UUID, cloverCategoryID string) (*products.Category, error) {
+func (r *CategorySQLCRepository) GetByCloverCategoryID(ctx context.Context, restaurantID uuid.UUID, cloverCategoryID string) (*products.Category, error) {
 	row, err := r.queries.GetCategoryByCloverID(ctx, GetCategoryByCloverIDParams{
 		RestaurantID:     restaurantID,
 		CloverCategoryID: cloverCategoryID,
@@ -207,7 +225,7 @@ func (r *SQLCRepository) GetByCloverCategoryID(ctx context.Context, restaurantID
 	return categoryToDomain(row), nil
 }
 
-func (r *SQLCRepository) ListCategoriesByRestaurant(ctx context.Context, restaurantID uuid.UUID) ([]products.Category, error) {
+func (r *CategorySQLCRepository) ListByRestaurant(ctx context.Context, restaurantID uuid.UUID) ([]products.Category, error) {
 	rows, err := r.queries.ListCategoriesByRestaurant(ctx, restaurantID)
 	if err != nil {
 		return nil, err
@@ -219,12 +237,12 @@ func (r *SQLCRepository) ListCategoriesByRestaurant(ctx context.Context, restaur
 	return out, nil
 }
 
-func (r *SQLCRepository) UpsertCategory(ctx context.Context, category *products.Category) error {
+func (r *CategorySQLCRepository) Upsert(ctx context.Context, category *products.Category) error {
 	_, err := r.queries.UpsertCategory(ctx, categoryFromDomain(category))
 	return err
 }
 
-func (r *SQLCRepository) UpsertCategoryBatch(ctx context.Context, categories []products.Category) error {
+func (r *CategorySQLCRepository) UpsertBatch(ctx context.Context, categories []products.Category) error {
 	tx, err := r.db.BeginTx(ctx, nil)
 	if err != nil {
 		return err
@@ -278,8 +296,24 @@ func analyticCategoryFromDomain(ac *products.AnalyticCategory) CreateAnalyticCat
 	return params
 }
 
-// AnalyticCategoryRepository implementation
-func (r *SQLCRepository) GetAnalyticCategoryByID(ctx context.Context, id uuid.UUID) (*products.AnalyticCategory, error) {
+// ============================================================
+// AnalyticCategorySQLCRepository implements products.AnalyticCategoryRepository.
+// ============================================================
+
+type AnalyticCategorySQLCRepository struct {
+	db      *sql.DB
+	queries *Queries
+}
+
+// NewAnalyticCategorySQLCRepository creates a new sqlc-backed analytic category repository.
+func NewAnalyticCategorySQLCRepository(db *sql.DB) *AnalyticCategorySQLCRepository {
+	return &AnalyticCategorySQLCRepository{
+		db:      db,
+		queries: New(db),
+	}
+}
+
+func (r *AnalyticCategorySQLCRepository) GetByID(ctx context.Context, id uuid.UUID) (*products.AnalyticCategory, error) {
 	row, err := r.queries.GetAnalyticCategoryByID(ctx, id)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, nil
@@ -290,7 +324,7 @@ func (r *SQLCRepository) GetAnalyticCategoryByID(ctx context.Context, id uuid.UU
 	return analyticCategoryToDomain(row), nil
 }
 
-func (r *SQLCRepository) GetBySlug(ctx context.Context, restaurantID uuid.UUID, slug string) (*products.AnalyticCategory, error) {
+func (r *AnalyticCategorySQLCRepository) GetBySlug(ctx context.Context, restaurantID uuid.UUID, slug string) (*products.AnalyticCategory, error) {
 	row, err := r.queries.GetAnalyticCategoryBySlug(ctx, GetAnalyticCategoryBySlugParams{
 		RestaurantID: restaurantID,
 		Slug:         slug,
@@ -304,7 +338,7 @@ func (r *SQLCRepository) GetBySlug(ctx context.Context, restaurantID uuid.UUID, 
 	return analyticCategoryToDomain(row), nil
 }
 
-func (r *SQLCRepository) ListAnalyticCategoriesByRestaurant(ctx context.Context, restaurantID uuid.UUID) ([]products.AnalyticCategory, error) {
+func (r *AnalyticCategorySQLCRepository) ListByRestaurant(ctx context.Context, restaurantID uuid.UUID) ([]products.AnalyticCategory, error) {
 	rows, err := r.queries.ListAnalyticCategoriesByRestaurant(ctx, restaurantID)
 	if err != nil {
 		return nil, err
@@ -316,7 +350,7 @@ func (r *SQLCRepository) ListAnalyticCategoriesByRestaurant(ctx context.Context,
 	return out, nil
 }
 
-func (r *SQLCRepository) CreateAnalyticCategory(ctx context.Context, category *products.AnalyticCategory) error {
+func (r *AnalyticCategorySQLCRepository) Create(ctx context.Context, category *products.AnalyticCategory) error {
 	row, err := r.queries.CreateAnalyticCategory(ctx, analyticCategoryFromDomain(category))
 	if err != nil {
 		return err
@@ -325,7 +359,7 @@ func (r *SQLCRepository) CreateAnalyticCategory(ctx context.Context, category *p
 	return nil
 }
 
-func (r *SQLCRepository) UpdateAnalyticCategory(ctx context.Context, category *products.AnalyticCategory) error {
+func (r *AnalyticCategorySQLCRepository) Update(ctx context.Context, category *products.AnalyticCategory) error {
 	params := UpdateAnalyticCategoryParams{
 		ID:           category.ID,
 		Name:         category.Name,
@@ -340,7 +374,7 @@ func (r *SQLCRepository) UpdateAnalyticCategory(ctx context.Context, category *p
 	return r.queries.UpdateAnalyticCategory(ctx, params)
 }
 
-func (r *SQLCRepository) DeleteAnalyticCategory(ctx context.Context, id uuid.UUID) error {
+func (r *AnalyticCategorySQLCRepository) Delete(ctx context.Context, id uuid.UUID) error {
 	return r.queries.DeleteAnalyticCategory(ctx, id)
 }
 
@@ -378,8 +412,24 @@ func categoryMappingFromDomain(cm *products.CategoryMapping) UpsertCategoryMappi
 	return params
 }
 
-// CategoryMappingRepository implementation
-func (r *SQLCRepository) GetByCategoryID(ctx context.Context, restaurantID uuid.UUID, categoryID uuid.UUID) (*products.CategoryMapping, error) {
+// ============================================================
+// CategoryMappingSQLCRepository implements products.CategoryMappingRepository.
+// ============================================================
+
+type CategoryMappingSQLCRepository struct {
+	db      *sql.DB
+	queries *Queries
+}
+
+// NewCategoryMappingSQLCRepository creates a new sqlc-backed category mapping repository.
+func NewCategoryMappingSQLCRepository(db *sql.DB) *CategoryMappingSQLCRepository {
+	return &CategoryMappingSQLCRepository{
+		db:      db,
+		queries: New(db),
+	}
+}
+
+func (r *CategoryMappingSQLCRepository) GetByCategoryID(ctx context.Context, restaurantID uuid.UUID, categoryID uuid.UUID) (*products.CategoryMapping, error) {
 	row, err := r.queries.GetCategoryMappingByCategoryID(ctx, GetCategoryMappingByCategoryIDParams{
 		RestaurantID: restaurantID,
 		CategoryID:   categoryID,
@@ -393,7 +443,7 @@ func (r *SQLCRepository) GetByCategoryID(ctx context.Context, restaurantID uuid.
 	return categoryMappingToDomain(row), nil
 }
 
-func (r *SQLCRepository) UpsertCategoryMapping(ctx context.Context, mapping *products.CategoryMapping) error {
+func (r *CategoryMappingSQLCRepository) Upsert(ctx context.Context, mapping *products.CategoryMapping) error {
 	_, err := r.queries.UpsertCategoryMapping(ctx, categoryMappingFromDomain(mapping))
 	return err
 }

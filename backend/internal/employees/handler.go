@@ -2,6 +2,7 @@ package employees
 
 import (
 	"net/http"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/labstack/echo/v4"
@@ -21,8 +22,7 @@ func NewHandler(service *Service) *Handler {
 func (h *Handler) RegisterRoutes(g *echo.Group) {
 	g.GET("/employees", h.List)
 	g.GET("/employees/:id", h.GetByID)
-	// TODO: Add GET /employees/:id/orders once orders.Service is available (Phase 4.3)
-	// g.GET("/employees/:id/orders", h.GetEmployeeOrders)
+	g.GET("/employees/:id/orders", h.GetEmployeeOrders)
 }
 
 func (h *Handler) List(c echo.Context) error {
@@ -57,4 +57,31 @@ func (h *Handler) GetByID(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusNotFound, "employee not found")
 	}
 	return c.JSON(http.StatusOK, emp)
+}
+
+func (h *Handler) GetEmployeeOrders(c echo.Context) error {
+	id, err := uuid.Parse(c.Param("id"))
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, "invalid id")
+	}
+
+	fromStr := c.QueryParam("from")
+	toStr := c.QueryParam("to")
+	if fromStr == "" || toStr == "" {
+		return echo.NewHTTPError(http.StatusBadRequest, "from and to dates are required")
+	}
+	from, err := time.Parse(time.RFC3339, fromStr)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, "invalid from date format (RFC3339)")
+	}
+	to, err := time.Parse(time.RFC3339, toStr)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, "invalid to date format (RFC3339)")
+	}
+
+	orders, err := h.service.GetEmployeeOrders(c.Request().Context(), id, from, to)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusInternalServerError, err.Error())
+	}
+	return c.JSON(http.StatusOK, orders)
 }

@@ -3,18 +3,29 @@ package employees
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/google/uuid"
+	"github.com/sales-insight/backend/internal/orders"
 )
+
+// orderLister defines the subset of orders.Service that employees.Service needs.
+type orderLister interface {
+	ListByEmployee(ctx context.Context, employeeID uuid.UUID, from, to time.Time) ([]orders.Order, error)
+}
 
 // Service holds business logic for employees.
 type Service struct {
-	repo Repository
+	repo        Repository
+	orderLister orderLister
 }
 
 // NewService creates a new employee service.
-func NewService(repo Repository) *Service {
-	return &Service{repo: repo}
+func NewService(repo Repository, orderLister orderLister) *Service {
+	return &Service{
+		repo:        repo,
+		orderLister: orderLister,
+	}
 }
 
 // GetByID returns an employee by UUID.
@@ -52,4 +63,17 @@ func (s *Service) Deactivate(ctx context.Context, id uuid.UUID) error {
 		return fmt.Errorf("employee not found")
 	}
 	return s.repo.Deactivate(ctx, id)
+}
+
+// GetEmployeeOrders returns all orders associated with an employee in a date range.
+func (s *Service) GetEmployeeOrders(ctx context.Context, employeeID uuid.UUID, from, to time.Time) ([]orders.Order, error) {
+	// Verify employee exists
+	emp, err := s.repo.GetByID(ctx, employeeID)
+	if err != nil {
+		return nil, fmt.Errorf("lookup employee: %w", err)
+	}
+	if emp == nil {
+		return nil, fmt.Errorf("employee not found")
+	}
+	return s.orderLister.ListByEmployee(ctx, employeeID, from, to)
 }

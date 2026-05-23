@@ -3,8 +3,10 @@ package employees
 import (
 	"context"
 	"testing"
+	"time"
 
 	"github.com/google/uuid"
+	"github.com/sales-insight/backend/internal/orders"
 )
 
 // mockRepository is a test double for Repository.
@@ -59,9 +61,27 @@ func (m *mockRepository) Deactivate(_ context.Context, id uuid.UUID) error {
 	return nil
 }
 
-func TestService_GetByID(t *testing.T) {
+// mockOrderLister is a test double for orderLister.
+type mockOrderLister struct {
+	orders map[uuid.UUID][]orders.Order
+}
+
+func newMockOrderLister() *mockOrderLister {
+	return &mockOrderLister{orders: make(map[uuid.UUID][]orders.Order)}
+}
+
+func (m *mockOrderLister) ListByEmployee(_ context.Context, employeeID uuid.UUID, from, to time.Time) ([]orders.Order, error) {
+	return m.orders[employeeID], nil
+}
+
+func newTestService() (*Service, *mockRepository, *mockOrderLister) {
 	repo := newMockRepository()
-	svc := NewService(repo)
+	orderLister := newMockOrderLister()
+	return NewService(repo, orderLister), repo, orderLister
+}
+
+func TestService_GetByID(t *testing.T) {
+	svc, repo, _ := newTestService()
 	ctx := context.Background()
 
 	emp := &Employee{
@@ -80,8 +100,7 @@ func TestService_GetByID(t *testing.T) {
 }
 
 func TestService_ListByRestaurant(t *testing.T) {
-	repo := newMockRepository()
-	svc := NewService(repo)
+	svc, repo, _ := newTestService()
 	ctx := context.Background()
 	restID := uuid.New()
 
@@ -100,8 +119,7 @@ func TestService_ListByRestaurant(t *testing.T) {
 }
 
 func TestService_UpsertBatch(t *testing.T) {
-	repo := newMockRepository()
-	svc := NewService(repo)
+	svc, repo, _ := newTestService()
 	ctx := context.Background()
 	restID := uuid.New()
 
@@ -120,8 +138,7 @@ func TestService_UpsertBatch(t *testing.T) {
 }
 
 func TestService_Deactivate(t *testing.T) {
-	repo := newMockRepository()
-	svc := NewService(repo)
+	svc, repo, _ := newTestService()
 	ctx := context.Background()
 
 	emp := &Employee{
@@ -142,11 +159,43 @@ func TestService_Deactivate(t *testing.T) {
 }
 
 func TestService_Deactivate_NotFound(t *testing.T) {
-	repo := newMockRepository()
-	svc := NewService(repo)
+	svc, _, _ := newTestService()
 	ctx := context.Background()
 
 	err := svc.Deactivate(ctx, uuid.New())
+	if err == nil {
+		t.Error("expected error for non-existent employee")
+	}
+}
+
+func TestService_GetEmployeeOrders(t *testing.T) {
+	svc, repo, orderLister := newTestService()
+	ctx := context.Background()
+	now := time.Now().UTC()
+
+	empID := uuid.New()
+	repo.employees[empID] = &Employee{ID: empID, Name: "Alice"}
+
+	orderLister.orders[empID] = []orders.Order{
+		{ID: uuid.New(), CloverOrderID: "clv_1", CreatedTime: now},
+		{ID: uuid.New(), CloverOrderID: "clv_2", CreatedTime: now},
+	}
+
+	got, err := svc.GetEmployeeOrders(ctx, empID, now.AddDate(0, 0, -1), now.AddDate(0, 0, 1))
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(got) != 2 {
+		t.Errorf("expected 2 orders, got %d", len(got))
+	}
+}
+
+func TestService_GetEmployeeOrders_NotFound(t *testing.T) {
+	svc, _, _ := newTestService()
+	ctx := context.Background()
+	now := time.Now().UTC()
+
+	_, err := svc.GetEmployeeOrders(ctx, uuid.New(), now.AddDate(0, 0, -1), now.AddDate(0, 0, 1))
 	if err == nil {
 		t.Error("expected error for non-existent employee")
 	}

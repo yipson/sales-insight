@@ -117,7 +117,7 @@ func main() {
 	)
 	syncEngine.SetBatchSize(100)
 
-	cronScheduler := scheduler.NewScheduler(syncEngine, merchantRepo, log)
+	cronScheduler := scheduler.NewScheduler(syncEngine, merchantRepo, syncRepo, log)
 	cronScheduler.Start(context.Background())
 
 	// 10. Handlers

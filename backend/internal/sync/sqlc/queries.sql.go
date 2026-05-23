@@ -7,9 +7,61 @@ package sqlc
 
 import (
 	"context"
+	"database/sql"
+	"time"
 
 	"github.com/google/uuid"
+	"github.com/sqlc-dev/pqtype"
 )
+
+const createSyncLog = `-- name: CreateSyncLog :one
+INSERT INTO sync_logs (
+    restaurant_id, entity, status, records_processed,
+    records_inserted, records_updated, records_skipped, records_failed,
+    cursor_from, cursor_to, triggered_by, details
+) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+RETURNING id, started_at
+`
+
+type CreateSyncLogParams struct {
+	RestaurantID     uuid.UUID             `json:"restaurant_id"`
+	Entity           SyncEntity            `json:"entity"`
+	Status           string                `json:"status"`
+	RecordsProcessed int32                 `json:"records_processed"`
+	RecordsInserted  int32                 `json:"records_inserted"`
+	RecordsUpdated   int32                 `json:"records_updated"`
+	RecordsSkipped   int32                 `json:"records_skipped"`
+	RecordsFailed    int32                 `json:"records_failed"`
+	CursorFrom       sql.NullTime          `json:"cursor_from"`
+	CursorTo         sql.NullTime          `json:"cursor_to"`
+	TriggeredBy      string                `json:"triggered_by"`
+	Details          pqtype.NullRawMessage `json:"details"`
+}
+
+type CreateSyncLogRow struct {
+	ID        uuid.UUID `json:"id"`
+	StartedAt time.Time `json:"started_at"`
+}
+
+func (q *Queries) CreateSyncLog(ctx context.Context, arg CreateSyncLogParams) (CreateSyncLogRow, error) {
+	row := q.db.QueryRowContext(ctx, createSyncLog,
+		arg.RestaurantID,
+		arg.Entity,
+		arg.Status,
+		arg.RecordsProcessed,
+		arg.RecordsInserted,
+		arg.RecordsUpdated,
+		arg.RecordsSkipped,
+		arg.RecordsFailed,
+		arg.CursorFrom,
+		arg.CursorTo,
+		arg.TriggeredBy,
+		arg.Details,
+	)
+	var i CreateSyncLogRow
+	err := row.Scan(&i.ID, &i.StartedAt)
+	return i, err
+}
 
 const getLatestSyncByEntity = `-- name: GetLatestSyncByEntity :many
 SELECT DISTINCT ON (entity) id, restaurant_id, entity, status, records_processed, records_inserted, records_updated, records_skipped, records_failed, cursor_from, cursor_to, started_at, finished_at, triggered_by, details

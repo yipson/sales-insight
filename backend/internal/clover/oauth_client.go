@@ -10,6 +10,13 @@ import (
 	"time"
 )
 
+// TokenExchanger defines the interface for OAuth token operations.
+// This interface is implemented by OAuthClient and allows mocking in tests.
+type TokenExchanger interface {
+	ExchangeCode(ctx context.Context, clientID, clientSecret, code string) (*TokenResponse, error)
+	RefreshTokens(ctx context.Context, clientID, refreshToken string) (*TokenResponse, error)
+}
+
 // OAuthClient handles Clover OAuth-specific endpoints.
 // It uses separate base URLs from the REST API client.
 type OAuthClient struct {

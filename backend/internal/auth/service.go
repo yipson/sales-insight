@@ -15,7 +15,7 @@ import (
 
 // Service handles Clover OAuth authentication and token management.
 type Service struct {
-	oauthClient  *clover.OAuthClient
+	oauthClient  clover.TokenExchanger
 	merchantRepo merchant.Repository
 	encrypter    *security.Encrypter
 	tokenCache   *tokencache.Cache
@@ -25,7 +25,7 @@ type Service struct {
 
 // NewService creates an auth service.
 func NewService(
-	oauthClient *clover.OAuthClient,
+	oauthClient clover.TokenExchanger,
 	merchantRepo merchant.Repository,
 	encrypter *security.Encrypter,
 	tokenCache *tokencache.Cache,

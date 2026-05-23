@@ -280,34 +280,30 @@
 ## Fase 5: Dashboard + Sync Status API
 **Objetivo:** Endpoints de métricas y estado de sincronización.
 
-- [ ] **5.1 Implementar feature `dashboard/` completo**
-  - `dashboard/model.go` — DTOs de respuesta (`DashboardSummary`, `SalesByEmployee`, etc.)
-  - `dashboard/service.go` — orquesta `analytics.Service`, `orders.Service`, `employees.Service`
-  - `dashboard/handler.go` — endpoints:
-    - `GET /api/v1/dashboard/summary`
-    - `GET /api/v1/dashboard/sales-by-employee`
-    - `GET /api/v1/dashboard/top-products`
-    - `GET /api/v1/dashboard/category-coverage`
-    - `GET /api/v1/dashboard/ticket-ideal`
-  - Todos con parámetro `?from=YYYY-MM-DD&to=YYYY-MM-DD`
+- [x] **5.1 Implementar feature `dashboard/` completo**
+  - `dashboard/model.go` — DTOs de respuesta: `SummaryResponse`, `SalesByEmployeeResponse`, `TopProductsResponse`, `CategoryCoverageResponse`, `TicketIdealResponse`
+  - `dashboard/service.go` — orquesta `analytics.Service` + `merchant.Service` (para obtener `ticket_completo_rules`)
+  - `dashboard/handler.go` — 5 endpoints con parámetro `?from=YYYY-MM-DD&to=YYYY-MM-DD`
+  - `dashboard/service_test.go` — mocks de merchant + analytics repos
 
-- [ ] **5.2 Implementar sync status handlers**
-  - Agregar a `sync/` (o crear `sync/handler.go`):
-    - `GET /api/v1/sync/status` — última sync por entidad
-    - `GET /api/v1/sync/logs` — historial de sync
-    - `POST /api/v1/sync/trigger` — disparar sync manual
-    - `GET /api/v1/sync/errors` — errores no resueltos
+- [x] **5.2 Implementar sync status handlers**
+  - `sync/model.go` — structs `Log`, `Error`, `SyncEntity`
+  - `sync/repository.go` — interfaces `LogRepository`, `ErrorRepository`
+  - `sync/sqlc/queries.sql` — 3 queries (latest-by-entity, list-logs, unresolved-errors)
+  - `sync/sqlc/repository.go` — implementación sqlc
+  - `sync/handler.go` — endpoints: `GET /sync/status`, `GET /sync/logs`, `POST /sync/trigger`, `GET /sync/errors`
 
-- [ ] **5.3 Implementar `internal/api/server.go`**
+- [x] **5.3 Implementar `internal/api/server.go`**
   - Setup centralizado de Echo con middlewares: CORS, logger, recovery, request ID
-  - Montar todos los handlers en grupos de rutas
+  - Monta todos los handlers en grupos de rutas
   - `GET /health` con chequeo de DB
 
-- [ ] **5.4 Actualizar `cmd/api/main.go`**
-  - Usar `api.NewServer(...)` en lugar de setup inline
-  - Wire `dashboard.Service` y `sync.Handler`
+- [x] **5.4 Actualizar `cmd/api/main.go`**
+  - Usa `api.NewServer(...)` en lugar de setup inline
+  - Wire completo: dashboard.Service, sync.Handler, analytics.Service
+  - `sqlc.yaml` actualizado con entry `sync/sqlc`
 
-**Commit sugerido:** `feat: dashboard API y sync status endpoints`
+**Commit sugerido:** `feat: dashboard API, sync status endpoints y api/server.go centralizado`
 
 ---
 

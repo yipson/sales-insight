@@ -4,19 +4,17 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
-	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
 	"time"
 
-	"github.com/labstack/echo/v4"
-	"github.com/labstack/echo/v4/middleware"
-
 	"github.com/sales-insight/backend/internal/analytics"
 	analyticssqlc "github.com/sales-insight/backend/internal/analytics/sqlc"
+	"github.com/sales-insight/backend/internal/api"
 	"github.com/sales-insight/backend/internal/auth"
 	"github.com/sales-insight/backend/internal/clover"
+	"github.com/sales-insight/backend/internal/dashboard"
 	"github.com/sales-insight/backend/internal/employees"
 	employeessqlc "github.com/sales-insight/backend/internal/employees/sqlc"
 	"github.com/sales-insight/backend/internal/merchant"
@@ -32,6 +30,7 @@ import (
 	"github.com/sales-insight/backend/internal/products"
 	productssqlc "github.com/sales-insight/backend/internal/products/sqlc"
 	"github.com/sales-insight/backend/internal/sync"
+	syncsqlc "github.com/sales-insight/backend/internal/sync/sqlc"
 	"github.com/sales-insight/backend/internal/token_cache"
 )
 
@@ -74,14 +73,15 @@ func main() {
 	categorySummaryRepo := orderssqlc.NewCategorySummarySQLCRepository(postgres.DB)
 	paymentRepo := paymentssqlc.NewSQLCRepository(postgres.DB)
 	analyticsRepo := analyticssqlc.NewSQLCRepository(postgres.DB)
+	syncRepo := syncsqlc.NewSQLCRepository(postgres.DB)
 
 	// 6. Services
 	merchantSvc := merchant.NewService(merchantRepo)
 	orderSvc := orders.NewService(orderRepo, orderItemRepo, categorySummaryRepo)
 	employeeSvc := employees.NewService(employeeRepo, orderSvc)
 	productSvc := products.NewService(productRepo, categoryRepo, analyticCategoryRepo, mappingRepo)
-	// analyticsSvc will be wired into dashboard.Service in Phase 5
-	_ = analytics.NewService(analyticsRepo)
+	analyticsSvc := analytics.NewService(analyticsRepo)
+	dashboardSvc := dashboard.NewService(analyticsSvc, merchantSvc)
 
 	// 7. Auth & Clover
 	tokenCache := tokencache.NewCache()
@@ -103,7 +103,7 @@ func main() {
 
 	// 9. Sync Engine & Scheduler
 	cloverClient := clover.NewClient(cfg.Clover.Env)
-		syncEngine := sync.NewEngine(
+	syncEngine := sync.NewEngine(
 		cloverClient,
 		tokenCache,
 		merchantRepo,
@@ -120,50 +120,31 @@ func main() {
 	cronScheduler := scheduler.NewScheduler(syncEngine, merchantRepo, log)
 	cronScheduler.Start(context.Background())
 
-	// 10. HTTP Server
-	e := echo.New()
-	e.HideBanner = true
-	e.Use(middleware.Recover())
-	e.Use(middleware.RequestID())
-	e.Use(middleware.LoggerWithConfig(middleware.LoggerConfig{
-		Format: "${time_rfc3339} ${method} ${uri} ${status} ${latency_human}\n",
-	}))
-
-	// Health check
-	e.GET("/health", func(c echo.Context) error {
-		if err := postgres.Health(c.Request().Context()); err != nil {
-			return c.JSON(http.StatusServiceUnavailable, map[string]string{"status": "unhealthy", "db": err.Error()})
-		}
-		return c.JSON(http.StatusOK, map[string]string{"status": "healthy"})
-	})
-
-	// API v1
-	v1 := e.Group("/api/v1")
-
-	// Merchant routes
+	// 10. Handlers
 	merchantHandler := merchant.NewHandler(merchantSvc)
-	merchantHandler.RegisterRoutes(v1)
-
-	// Employee routes
 	employeeHandler := employees.NewHandler(employeeSvc)
-	employeeHandler.RegisterRoutes(v1)
-
-	// Product routes
 	productHandler := products.NewHandler(productSvc)
-	productHandler.RegisterRoutes(v1)
-
-	// Order routes
 	orderHandler := orders.NewHandler(orderSvc)
-	orderHandler.RegisterRoutes(v1)
+	dashboardHandler := dashboard.NewHandler(dashboardSvc)
+	syncHandler := sync.NewHandler(syncRepo, syncRepo, syncEngine)
 
-	// Auth routes
-	authHandler.RegisterRoutes(v1)
+	// 11. HTTP Server (centralized setup)
+	server := api.NewServer(
+		postgres,
+		authHandler,
+		merchantHandler,
+		employeeHandler,
+		productHandler,
+		orderHandler,
+		dashboardHandler,
+		syncHandler,
+		cfg.Server.FrontendURL,
+	)
 
-	// Start server in a goroutine
 	go func() {
 		addr := ":" + cfg.Server.Port
 		log.Info("starting server", slog.String("addr", addr))
-		if err := e.Start(addr); err != nil && err != http.ErrServerClosed {
+		if err := server.Start(addr); err != nil {
 			log.Error("server error", slog.String("error", err.Error()))
 		}
 	}()
@@ -175,19 +156,16 @@ func main() {
 
 	log.Info("shutting down server")
 
-	// Stop scheduler before shutting down HTTP server
 	cronScheduler.Stop()
 
 	if cfg.AppEnv == "development" {
-		// In development, close immediately to free the port right away
-		if err := e.Close(); err != nil {
+		if err := server.Close(); err != nil {
 			log.Error("server close error", slog.String("error", err.Error()))
 		}
 	} else {
-		// In production, graceful shutdown with timeout
 		shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 		defer cancel()
-		if err := e.Shutdown(shutdownCtx); err != nil {
+		if err := server.Shutdown(shutdownCtx); err != nil {
 			log.Error("server shutdown error", slog.String("error", err.Error()))
 		}
 	}

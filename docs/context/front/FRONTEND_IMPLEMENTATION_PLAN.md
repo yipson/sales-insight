@@ -92,58 +92,45 @@
 ## Fase B: Infraestructura (core/)
 **Objetivo:** Construir la base transversal: HTTP client, router, layout, stores globales.
 
-- [ ] **B.1 Crear `core/api/client.ts`**
-  - Instancia de Axios con `baseURL` apuntando a `import.meta.env.VITE_API_URL`
-  - Interceptor `request`: inyecta `Authorization: Bearer <token>` desde `authStore`
-  - Interceptor `response`: maneja 401 (logout), 500 (toast de error genérico)
-  - Exportar `apiClient` tipado
+- [x] **B.1 Crear `core/api/client.ts`**
+  - [x] Instancia de Axios con `baseURL` apuntando a `import.meta.env.VITE_API_URL`
+  - [x] Interceptor `request`: inyecta `Authorization: Bearer <token>` desde `authStore`
+  - [x] Interceptor `response`: maneja 401 (logout), 500 (error logging)
+  - [x] Exportar `apiClient` tipado
 
-- [ ] **B.2 Crear `core/api/types.ts`**
-  - Definir `ApiResponse<T>`, `ApiError`, `PaginationParams`
+- [x] **B.2 Crear `core/api/types.ts`**
+  - [x] `ApiResponse<T>`, `ApiError`, `PaginationParams`
 
-- [ ] **B.3 Crear `core/store/authStore.ts`**
-  - Zustand store con: `token`, `restaurantId`, `isAuthenticated`, `login(token)`, `logout()`
-  - Agregar persistencia opcional a `localStorage` (evaluar en sesión)
+- [x] **B.3 Crear `core/store/authStore.ts`**
+  - [x] Zustand store: `token`, `restaurantId`, `isAuthenticated`, `login()`, `logout()`
 
-- [ ] **B.4 Crear `core/store/themeStore.ts`**
-  - Zustand store con: `theme: 'light' | 'dark'`, `toggleTheme()`
-  - Persistencia a `localStorage`
-  - Aplicar clase `dark` a `<html>` cuando theme === 'dark'
+- [x] **B.4 Crear `core/store/themeStore.ts`**
+  - [x] Zustand store con `zustand/middleware` persist
+  - [x] `theme: 'light' | 'dark'`, `toggleTheme()`, `setTheme()`
+  - [x] Aplica clase `dark` / `light` a `<html>` automáticamente
+  - [x] Persistencia a `localStorage` (key: `sales-insight-theme`)
 
-- [ ] **B.5 Crear `core/store/uiStore.ts`**
-  - Zustand store con: `sidebarOpen: boolean`, `toggleSidebar()`
-  - Opcional: `toastQueue: Toast[]`, `addToast()`, `removeToast(id)`
+- [x] **B.5 Crear `core/store/uiStore.ts`**
+  - [x] Zustand store: `sidebarOpen`, `toggleSidebar()`, `setSidebarOpen()`
+  - [x] Toast queue: `addToast()`, `removeToast()`, auto-remove tras 4s
 
-- [ ] **B.6 Crear `core/router/routes.tsx`**
-  - Definir array de rutas:
-    - `/login` → `LoginPage` (sin layout)
-    - `/dashboard` → `DashboardPage`
-    - `/employees` → `EmployeesPage`
-    - `/products` → `ProductsPage`
-    - `/orders` → `OrdersPage`
-    - `/settings` → `SettingsPage`
-  - Todas las rutas excepto `/login` son protegidas
+- [x] **B.6 Crear `core/router/routes.tsx`**
+  - [x] Definidas rutas: `/login`, `/dashboard`, `/employees`, `/products`, `/orders`, `/settings`
 
-- [ ] **B.7 Crear `core/router/ProtectedRoute.tsx`**
-  - Lee `authStore.isAuthenticated`
-  - Si no está autenticado: redirige a `/login`
-  - Si está autenticado: renderiza `<Outlet />`
+- [x] **B.7 Crear `core/router/ProtectedRoute.tsx`**
+  - [x] Lee `authStore.isAuthenticated`; redirige a `/login` si no está autenticado
 
-- [ ] **B.8 Crear `core/router/Layout.tsx`**
-  - Estructura: `Sidebar` (izquierda, fija) + `Header` (arriba) + `<Outlet>` (contenido)
-  - Responsive: en MVP solo desktop, sin breakpoints móviles
+- [x] **B.8 Crear `core/router/Layout.tsx`**
+  - [x] Sidebar (izquierda, colapsable) + Header (arriba) + `<Outlet>` (contenido)
 
-- [ ] **B.9 Crear `core/router/AppRouter.tsx`**
-  - `BrowserRouter` con `Routes`
-  - Ruta `/login` fuera del `Layout`
-  - Resto de rutas envueltas en `Layout` + `ProtectedRoute`
+- [x] **B.9 Crear `core/router/AppRouter.tsx`**
+  - [x] `BrowserRouter` con `Routes`; `/login` fuera del layout; resto protegidas
 
-- [ ] **B.10 Actualizar `App.tsx`**
-  - Importar `AppRouter`
-  - Envolver con `QueryClientProvider` (TanStack Query)
+- [x] **B.10 Actualizar `App.tsx`**
+  - [x] `QueryClientProvider` + `AppRouter`
 
-- [ ] **B.11 Verificar build**
-  - `pnpm run build` sin errores
+- [x] **B.11 Verificar build**
+  - [x] `pnpm run build` → ✅ exitoso (1814 módulos, 295KB js gzip 93KB)
 
 **Commit sugerido:** `feat(frontend): core infrastructure — api client, router, layout, stores`
 

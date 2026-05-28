@@ -136,12 +136,14 @@ feature/
 **Cuándo corregir:** Si crece mucho, definir `platform/db.DBTX` y configurar sqlc para no generar `db.go`.  
 **Impacto:** Mínimo, es código generado.
 
-### CT4: Cursor inicial en scheduler usa `time.Time{}`
+### ~~CT4: Cursor inicial en scheduler usa `time.Time{}`~~ ✅ RESUELTO
 **Ubicación:** `platform/scheduler/cron.go`  
-**Problema:** `syncOrders` y `syncPayments` usan cursor en zero time (`time.Time{}`), lo que significa que la primera ejecución traerá TODO el historial de Clover.  
-**Solución temporal:** Comentario `TODO` indica que en producción debería cargarse desde `sync_logs`.  
-**Cuándo corregir:** Fase 6 (integración) — implementar lectura/escritura de cursores en `sync_logs`.  
-**Impacto:** Primera sync muy pesada; riesgo de rate limiting agresivo.
+**Estado:** Resuelto. El scheduler ahora:
+1. Lee el último cursor desde `sync_logs` vía `syncLogRepo.GetLatestByEntity()`.
+2. Si no existe log previo, usa el **primer día del mes anterior** como cursor inicial (evita descargar años de historial).
+3. Después de cada sync exitosa, escribe un registro en `sync_logs` con `cursor_from`, `cursor_to` y estado `"success"`.
+4. Se agregó endpoint `POST /api/v1/sync/backfill` para sincronización manual de rangos históricos.
+**Impacto:** Primera sync limitada a ~30-60 días de datos. Backfill disponible bajo demanda.
 
 ### CT5: `CalculateCategorySummary` es placeholder
 **Ubicación:** `sync/transform.go`  
@@ -150,12 +152,13 @@ feature/
 **Cuándo corregir:** Fase 4/5 — cuando `products/` tenga sqlc implementado con `category_mappings`.  
 **Impacto:** El dashboard no mostrará cobertura de categorías por empleado todavía.
 
-### CT6: Payments sin asociación a Orders/Employees
-**Ubicación:** `sync/payments.go`  
-**Problema:** Los pagos se extraen pero no se resuelven los `order_id` y `employee_id` internos (se guardan como nil).  
-**Solución temporal:** Se extraen los Clover IDs pero no se hace lookup.  
-**Cuándo corregir:** Fase 4 — cuando `orders` y `employees` tengan repositorios sqlc funcionando.  
-**Impacto:** Métricas de pagos por empleado/orden no disponibles.
+### ~~CT6: Payments sin asociación a Orders/Employees~~ ✅ RESUELTO
+**Ubicación:** `sync/payments.go` + `sync/engine.go`  
+**Estado:** Resuelto. El sync engine ahora resuelve `order_id` y `employee_id` internos durante la sincronización de pagos:
+1. `resolveOrderID(ctx, merchantID, cloverOrderID)` → busca en `orders` por `clover_order_id`.
+2. `resolveEmployeeID(ctx, merchantID, cloverEmployeeID)` → busca en `employees` por `clover_employee_id`.
+3. Si la orden o empleado aún no existe (ej. sync de pagos ocurrió antes que órdenes), el campo queda `nil` y se resuelve en la próxima sync gracias al `ON CONFLICT DO UPDATE` de la query `UpsertPayment`.
+**Impacto:** Métricas de pagos por empleado y por orden ahora son calculables. Dashboard analytics funcionan correctamente.
 
 ---
 

@@ -79,12 +79,12 @@ func (e *Engine) SyncPayments(ctx context.Context, merchantID uuid.UUID, cursor 
 			SyncedAt:        time.Now().UTC(),
 		}
 
-		// Store Clover IDs for reference (will be resolved to internal UUIDs in Phase 4)
+		// Resolve internal UUIDs from Clover external IDs
 		if p.Order.ID != "" {
-			_ = p.Order.ID
+			payment.OrderID = e.resolveOrderID(ctx, merchantID, p.Order.ID)
 		}
 		if p.Employee.ID != "" {
-			_ = p.Employee.ID
+			payment.EmployeeID = e.resolveEmployeeID(ctx, merchantID, p.Employee.ID)
 		}
 
 		domainPayments = append(domainPayments, payment)

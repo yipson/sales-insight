@@ -14,19 +14,21 @@ import (
 
 // Scheduler wraps robfig/cron to run periodic sync tasks.
 type Scheduler struct {
-	cron       *cron.Cron
-	engine     *sync.Engine
-	merchantRepo merchant.Repository
-	logger     *slog.Logger
+	cron         *cron.Cron
+	engine       *sync.Engine
+	merchantRepo   merchant.Repository
+	syncLogRepo   sync.LogRepository
+	logger       *slog.Logger
 }
 
 // NewScheduler creates a new scheduler with the given sync engine.
-func NewScheduler(engine *sync.Engine, merchantRepo merchant.Repository, logger *slog.Logger) *Scheduler {
+func NewScheduler(engine *sync.Engine, merchantRepo merchant.Repository, syncLogRepo sync.LogRepository, logger *slog.Logger) *Scheduler {
 	return &Scheduler{
-		cron:       cron.New(),
-		engine:     engine,
+		cron:         cron.New(),
+		engine:       engine,
 		merchantRepo: merchantRepo,
-		logger:     logger,
+		syncLogRepo:  syncLogRepo,
+		logger:       logger,
 	}
 }
 
@@ -63,6 +65,59 @@ func (s *Scheduler) Stop() {
 	s.logger.Info("scheduler stopped")
 }
 
+// firstDayOfPreviousMonth returns the first day of the month before the given time.
+func firstDayOfPreviousMonth(t time.Time) time.Time {
+	firstOfCurrent := time.Date(t.Year(), t.Month(), 1, 0, 0, 0, 0, t.Location())
+	return firstOfCurrent.AddDate(0, -1, 0)
+}
+
+// getCursorForEntity returns the cursor to use for the next sync of the given entity.
+// It looks up the latest successful sync log. If none exists, it falls back to
+// the first day of the previous month (ensuring the first sync is bounded).
+func (s *Scheduler) getCursorForEntity(ctx context.Context, merchantID uuid.UUID, entity sync.SyncEntity) (time.Time, error) {
+	logs, err := s.syncLogRepo.GetLatestByEntity(ctx, merchantID)
+	if err != nil {
+		return time.Time{}, err
+	}
+
+	// Look for the most recent log matching this entity
+	for _, log := range logs {
+		if log.Entity == entity && log.Status == "success" && log.CursorTo != nil {
+			return *log.CursorTo, nil
+		}
+	}
+
+	// No previous successful sync — fallback to first day of previous month
+	return firstDayOfPreviousMonth(time.Now().UTC()), nil
+}
+
+// writeSyncLog persists a sync execution record.
+func (s *Scheduler) writeSyncLog(ctx context.Context, merchantID uuid.UUID, entity sync.SyncEntity, status string, count int, cursorFrom, cursorTo time.Time, errMsg string) {
+	log := &sync.Log{
+		RestaurantID:     merchantID,
+		Entity:             entity,
+		Status:             status,
+		RecordsProcessed:   int32(count),
+		TriggeredBy:        "scheduler",
+	}
+	if !cursorFrom.IsZero() {
+		log.CursorFrom = &cursorFrom
+	}
+	if !cursorTo.IsZero() {
+		log.CursorTo = &cursorTo
+	}
+	if errMsg != "" {
+		log.Details = []byte(`{"error": "` + errMsg + `"}`)
+	}
+	if err := s.syncLogRepo.CreateLog(ctx, log); err != nil {
+		s.logger.Error("failed to write sync log",
+			slog.String("error", err.Error()),
+			slog.String("entity", string(entity)),
+			slog.String("merchant_id", merchantID.String()),
+		)
+	}
+}
+
 // runForAllMerchants executes a sync function for every connected merchant.
 func (s *Scheduler) runForAllMerchants(ctx context.Context, entity string, fn func(context.Context, uuid.UUID) error) {
 	merchants, err := s.merchantRepo.List(ctx)
@@ -87,13 +142,19 @@ func (s *Scheduler) runForAllMerchants(ctx context.Context, entity string, fn fu
 }
 
 func (s *Scheduler) syncOrders(ctx context.Context, merchantID uuid.UUID) error {
-	// For MVP, use zero time as initial cursor
-	// In production, this should be loaded from sync_logs
-	cursor := time.Time{}
-	newCursor, count, err := s.engine.SyncOrders(ctx, merchantID, cursor)
+	entity := sync.SyncEntityOrders
+	cursor, err := s.getCursorForEntity(ctx, merchantID, entity)
 	if err != nil {
 		return err
 	}
+
+	newCursor, count, err := s.engine.SyncOrders(ctx, merchantID, cursor)
+	if err != nil {
+		s.writeSyncLog(ctx, merchantID, entity, "failed", 0, cursor, time.Time{}, err.Error())
+		return err
+	}
+
+	s.writeSyncLog(ctx, merchantID, entity, "success", count, cursor, newCursor, "")
 	s.logger.Info("synced orders",
 		slog.String("merchant_id", merchantID.String()),
 		slog.Int("count", count),
@@ -128,12 +189,19 @@ func (s *Scheduler) syncEmployees(ctx context.Context, merchantID uuid.UUID) err
 }
 
 func (s *Scheduler) syncPayments(ctx context.Context, merchantID uuid.UUID) error {
-	// For MVP, use zero time as initial cursor
-	cursor := time.Time{}
-	newCursor, count, err := s.engine.SyncPayments(ctx, merchantID, cursor)
+	entity := sync.SyncEntityPayments
+	cursor, err := s.getCursorForEntity(ctx, merchantID, entity)
 	if err != nil {
 		return err
 	}
+
+	newCursor, count, err := s.engine.SyncPayments(ctx, merchantID, cursor)
+	if err != nil {
+		s.writeSyncLog(ctx, merchantID, entity, "failed", 0, cursor, time.Time{}, err.Error())
+		return err
+	}
+
+	s.writeSyncLog(ctx, merchantID, entity, "success", count, cursor, newCursor, "")
 	s.logger.Info("synced payments",
 		slog.String("merchant_id", merchantID.String()),
 		slog.Int("count", count),

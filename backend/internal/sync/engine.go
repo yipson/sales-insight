@@ -23,7 +23,6 @@ type Engine struct {
 	merchantRepo  merchant.Repository
 	batchSize     int
 
-	// Domain repositories (interfaces — will be implemented in Phase 4)
 	orderRepo       orders.Repository
 	orderItemRepo   orders.OrderItemRepository
 	categorySummaryRepo orders.CategorySummaryRepository
@@ -88,4 +87,24 @@ func (e *Engine) getCloverMerchantID(ctx context.Context, merchantID uuid.UUID) 
 		return "", fmt.Errorf("merchant has no clover_merchant_id")
 	}
 	return m.CloverMerchantID, nil
+}
+
+// resolveOrderID looks up an internal order UUID by its Clover external ID.
+// Returns nil if the order is not found (may not have been synced yet).
+func (e *Engine) resolveOrderID(ctx context.Context, merchantID uuid.UUID, cloverOrderID string) *uuid.UUID {
+	order, err := e.orderRepo.GetByCloverOrderID(ctx, merchantID, cloverOrderID)
+	if err != nil || order == nil {
+		return nil
+	}
+	return &order.ID
+}
+
+// resolveEmployeeID looks up an internal employee UUID by its Clover external ID.
+// Returns nil if the employee is not found (may not have been synced yet).
+func (e *Engine) resolveEmployeeID(ctx context.Context, merchantID uuid.UUID, cloverEmployeeID string) *uuid.UUID {
+	emp, err := e.employeeRepo.GetByCloverEmployeeID(ctx, merchantID, cloverEmployeeID)
+	if err != nil || emp == nil {
+		return nil
+	}
+	return &emp.ID
 }

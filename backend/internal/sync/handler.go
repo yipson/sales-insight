@@ -30,6 +30,7 @@ func (h *Handler) RegisterRoutes(g *echo.Group) {
 	g.GET("/sync/status", h.Status)
 	g.GET("/sync/logs", h.Logs)
 	g.POST("/sync/trigger", h.Trigger)
+	g.POST("/sync/backfill", h.Backfill)
 	g.GET("/sync/errors", h.Errors)
 }
 
@@ -95,6 +96,89 @@ func (h *Handler) Trigger(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusInternalServerError, err.Error())
 	}
 	return c.NoContent(http.StatusAccepted)
+}
+
+// BackfillRequest holds parameters for a manual backfill operation.
+type BackfillRequest struct {
+	RestaurantID uuid.UUID `json:"restaurant_id"`
+	Entity       string    `json:"entity"`           // orders, payments
+	From         string    `json:"from"`             // YYYY-MM-DD
+	To           string    `json:"to,omitempty"`     // YYYY-MM-DD (optional, for logging)
+}
+
+// Backfill performs a manual historical sync for a specific date range.
+func (h *Handler) Backfill(c echo.Context) error {
+	var req BackfillRequest
+	if err := c.Bind(&req); err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, err.Error())
+	}
+	if req.RestaurantID == uuid.Nil {
+		return echo.NewHTTPError(http.StatusBadRequest, "restaurant_id is required")
+	}
+	if req.Entity == "" || req.From == "" {
+		return echo.NewHTTPError(http.StatusBadRequest, "entity and from are required")
+	}
+
+	cursor, err := time.Parse("2006-01-02", req.From)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, "invalid from date, expected YYYY-MM-DD")
+	}
+
+	ctx := c.Request().Context()
+	var newCursor time.Time
+	var count int
+	var syncErr error
+
+	switch req.Entity {
+	case "orders":
+		newCursor, count, syncErr = h.engine.SyncOrders(ctx, req.RestaurantID, cursor)
+	case "payments":
+		newCursor, count, syncErr = h.engine.SyncPayments(ctx, req.RestaurantID, cursor)
+	default:
+		return echo.NewHTTPError(http.StatusBadRequest, "invalid entity: must be 'orders' or 'payments'")
+	}
+
+	status := "success"
+	var details []byte
+	if syncErr != nil {
+		status = "failed"
+		details = []byte(`{"error": "` + syncErr.Error() + `"}`)
+	}
+
+	log := &Log{
+		RestaurantID:   req.RestaurantID,
+		Entity:           SyncEntity(req.Entity),
+		Status:           status,
+		RecordsProcessed: int32(count),
+		CursorFrom:       &cursor,
+		TriggeredBy:      "backfill",
+	}
+	if !newCursor.IsZero() {
+		log.CursorTo = &newCursor
+	}
+	if req.To != "" {
+		toDate, _ := time.Parse("2006-01-02", req.To)
+		if !toDate.IsZero() {
+			log.Details = []byte(fmt.Sprintf(`{"from": "%s", "to": "%s"}`, req.From, req.To))
+		}
+	}
+	if syncErr != nil {
+		log.Details = details
+	}
+	_ = h.logRepo.CreateLog(ctx, log)
+
+	if syncErr != nil {
+		return echo.NewHTTPError(http.StatusInternalServerError, syncErr.Error())
+	}
+	return c.JSON(http.StatusOK, map[string]interface{}{
+		"message":      "backfill completed",
+		"entity":       req.Entity,
+		"from":         req.From,
+		"to":           req.To,
+		"count":        count,
+		"cursor_from":  cursor.Format(time.RFC3339),
+		"cursor_to":    newCursor.Format(time.RFC3339),
+	})
 }
 
 func (h *Handler) Errors(c echo.Context) error {

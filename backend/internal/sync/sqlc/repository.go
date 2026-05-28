@@ -6,6 +6,7 @@ import (
 	"errors"
 
 	"github.com/google/uuid"
+	"github.com/sqlc-dev/pqtype"
 	"github.com/sales-insight/backend/internal/sync"
 )
 
@@ -117,6 +118,39 @@ func (r *SQLCRepository) ListByRestaurant(ctx context.Context, restaurantID uuid
 		out = append(out, *logToDomain(row))
 	}
 	return out, nil
+}
+
+func (r *SQLCRepository) CreateLog(ctx context.Context, log *sync.Log) error {
+	params := CreateSyncLogParams{
+		RestaurantID:     log.RestaurantID,
+		Entity:           SyncEntity(log.Entity),
+		Status:           log.Status,
+		RecordsProcessed: log.RecordsProcessed,
+		RecordsInserted:  log.RecordsInserted,
+		RecordsUpdated:   log.RecordsUpdated,
+		RecordsSkipped:   log.RecordsSkipped,
+		RecordsFailed:    log.RecordsFailed,
+		TriggeredBy:      log.TriggeredBy,
+	}
+	if log.CursorFrom != nil {
+		params.CursorFrom = sql.NullTime{Time: *log.CursorFrom, Valid: true}
+	}
+	if log.CursorTo != nil {
+		params.CursorTo = sql.NullTime{Time: *log.CursorTo, Valid: true}
+	}
+	if len(log.Details) > 0 {
+		params.Details = pqtype.NullRawMessage{
+			RawMessage: log.Details,
+			Valid:      true,
+		}
+	}
+	row, err := r.queries.CreateSyncLog(ctx, params)
+	if err != nil {
+		return err
+	}
+	log.ID = row.ID
+	log.StartedAt = row.StartedAt
+	return nil
 }
 
 // ErrorRepository implementation

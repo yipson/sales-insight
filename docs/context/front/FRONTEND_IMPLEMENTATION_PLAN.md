@@ -139,50 +139,40 @@
 ## Fase C: Shared Components Base
 **Objetivo:** Instalar componentes shadcn/ui base y crear utilidades compartidas.
 
-- [ ] **C.1 Instalar componentes shadcn/ui**
-  - `npx shadcn add button card input dialog table badge sonner dropdown-menu`
-  - Verificar que se crearon en `shared/components/ui/`
+- [x] **C.1 Instalar componentes shadcn/ui**
+  - [x] `npx shadcn add button card input dialog table badge sonner dropdown-menu --yes`
+  - [x] 8 componentes creados en `shared/components/ui/`
+  - [x] `pnpm run build` → ✅ exitoso
 
-- [ ] **C.2 Crear `shared/utils/cn.ts`**
-  - Combinar `clsx` + `tailwind-merge` en helper `cn(...inputs)`
+- [x] **C.2 Crear `shared/utils/cn.ts`**
+  - [x] `clsx` + `tailwind-merge` en helper `cn(...inputs)`
 
-- [ ] **C.3 Crear `shared/utils/formatters.ts`**
-  - `formatCurrency(amount: number): string`
-  - `formatDate(date: string | Date, format?: string): string`
-  - `formatPercentage(value: number): string`
+- [x] **C.3 Crear `shared/utils/formatters.ts`**
+  - [x] `formatCurrency()`, `formatDate()`, `formatPercentage()`, `formatNumber()`
 
-- [ ] **C.4 Crear `shared/utils/constants.ts`**
-  - `API_BASE_URL` (fallback a `http://localhost:8080`)
-  - `APP_NAME`
-  - `DEFAULT_DATE_RANGE` (últimos 30 días)
+- [x] **C.4 Crear `shared/utils/constants.ts`**
+  - [x] `API_BASE_URL`, `APP_NAME`, `DATE_FORMAT`, `DEFAULT_DATE_RANGE_DAYS`
 
-- [ ] **C.5 Crear `shared/hooks/useDebounce.ts`**
-  - Hook genérico `useDebounce<T>(value: T, delay: number): T`
+- [x] **C.5 Crear `shared/hooks/useDebounce.ts`**
+  - [x] `useDebounce<T>(value, delay)` genérico
 
-- [ ] **C.6 Crear `shared/hooks/useLocalStorage.ts`**
-  - Hook genérico `useLocalStorage<T>(key: string, initialValue: T): [T, (v: T) => void]`
+- [x] **C.6 Crear `shared/hooks/useLocalStorage.ts`**
+  - [x] `useLocalStorage<T>(key, initialValue)` con sync entre tabs
 
-- [ ] **C.7 Crear `shared/hooks/useEChart.ts`**
-  - Hook con `useRef<HTMLDivElement>` + `useEffect`
-  - `echarts.init()` en mount, `chart.setOption()` cuando cambian props, `chart.dispose()` en unmount
-  - Listener de `resize`
+- [x] **C.7 Crear `shared/hooks/useEChart.ts`**
+  - [x] `useRef` + `echarts.init`, resize listener, dispose cleanup, event handlers
 
-- [ ] **C.8 Crear `shared/components/charts/EChart.tsx`**
-  - Wrapper simple sobre `echarts-for-react` para el 90% de los casos
-  - Props: `option`, `style`, `onEvents?`
+- [x] **C.8 Crear `shared/components/charts/EChart.tsx`**
+  - [x] Wrapper `echarts-for-react` con props `option`, `style`, `className`, `onEvents`
 
-- [ ] **C.9 Crear `shared/components/Layout/Sidebar.tsx`**
-  - Links de navegación: Dashboard, Employees, Products, Orders, Settings
-  - Indicador de ruta activa (usa `useLocation` de React Router)
-  - Botón de colapsar (usa `uiStore.toggleSidebar`)
+- [x] **C.9 Crear `shared/components/Layout/Sidebar.tsx`**
+  - [x] 5 links de navegación, indicador activo, colapsable con `uiStore`
 
-- [ ] **C.10 Crear `shared/components/Layout/Header.tsx`**
-  - Título de la página actual
-  - Botón de tema (light/dark)
-  - Botón de logout
+- [x] **C.10 Crear `shared/components/Layout/Header.tsx`**
+  - [x] Título dinámico por ruta, toggle tema, logout
 
-- [ ] **C.11 Verificar build**
-  - `pnpm run build` sin errores
+- [x] **C.11 Verificar build**
+  - [x] `pnpm run build` → ✅ exitoso
 
 **Commit sugerido:** `feat(frontend): shared components, shadcn/ui base, hooks and utils`
 

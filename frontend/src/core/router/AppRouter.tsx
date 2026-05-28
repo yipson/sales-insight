@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import ProtectedRoute from "./ProtectedRoute";
 import Layout from "./Layout";
 import LoginPage from "@/pages/Login/LoginPage";
@@ -12,6 +12,7 @@ export default function AppRouter() {
   return (
     <BrowserRouter>
       <Routes>
+        <Route path="/" element={<Navigate to="/dashboard" replace />} />
         <Route path="/login" element={<LoginPage />} />
         <Route element={<ProtectedRoute />}>
           <Route element={<Layout />}>
@@ -22,6 +23,7 @@ export default function AppRouter() {
             <Route path="/settings" element={<SettingsPage />} />
           </Route>
         </Route>
+        <Route path="*" element={<div className="flex min-h-screen items-center justify-center">404 - Page not found</div>} />
       </Routes>
     </BrowserRouter>
   );

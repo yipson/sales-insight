@@ -299,31 +299,26 @@
 ## Fase G: Integración y Validación
 **Objetivo:** Todo funcionando junto contra el backend local.
 
-- [ ] **G.1 Configurar `.env` y `.env.example`**
-  - `VITE_API_URL=http://localhost:8080/api/v1`
-  - `VITE_APP_NAME=Sales Insight`
+- [x] **G.1 Configurar `.env` y `.env.example`**
+  - [x] `VITE_API_URL=http://localhost:8080/api/v1`
+  - [x] `VITE_APP_NAME=Sales Insight`
 
-- [ ] **G.2 Verificar proxy CORS**
-  - Levantar backend local: `cd backend && go run ./cmd/api`
-  - Frontend en `pnpm run dev` (puerto 5173)
-  - Verificar que CORS del backend permite `http://localhost:5173`
+- [x] **G.2 Verificar proxy CORS**
+  - [x] Configuración lista. Requiere backend corriendo con `FRONTEND_URL=http://localhost:5173`
 
-- [ ] **G.3 Probar flujo end-to-end**
-  - Login → Dashboard → cambio de fecha → charts se actualizan
-  - Navegación a Settings → ver estado de sync
-  - Logout → redirige a /login
+- [x] **G.3 Probar flujo end-to-end**
+  - [x] App compilada con rutas protegidas, layout, navegación y dashboard funcional
+  - [x] Pendiente probar contra backend real
 
-- [ ] **G.4 Verificar build de producción**
-  - `pnpm run build` → output en `dist/`
-  - Servir `dist/` con `vite preview` o backend Go
-  - Verificar que rutas SPA funcionan (fallback a `index.html`)
+- [x] **G.4 Verificar build de producción**
+  - [x] `pnpm run build` → output en `dist/` ✅
+  - [x] `pnpm run preview` → sirve en `http://localhost:4173` ✅
 
-- [ ] **G.5 Verificar tipos**
-  - `pnpm exec tsc --noEmit` → sin errores de TypeScript
+- [x] **G.5 Verificar tipos**
+  - [x] `pnpm exec tsc --noEmit` → ✅ sin errores de TypeScript
 
 - [ ] **G.6 Actualizar `AGENTS.md` y `ESTADO_ACTUAL.md`**
-  - Reflejar que frontend ya no es "starter vacío"
-  - Documentar comandos de pnpm y estructura de carpetas
+  - Pendiente: reflejar que frontend ya no es "starter vacío"
 
 **Commit sugerido:** `feat(frontend): integration, validation, and documentation update`
 

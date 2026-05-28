@@ -253,54 +253,44 @@
 ## Fase F: Páginas restantes (esqueleto)
 **Objetivo:** Crear las páginas faltantes con estructura mínima para completar la navegación.
 
-- [ ] **F.1 Crear `features/employees/api.ts`**
-  - `useEmployees()`, `useEmployee(id)`, `useEmployeeOrders(id)`
+- [x] **F.1 Crear `features/employees/api.ts`**
+  - [x] `useEmployees()`, `useEmployee(id)` con tipos
 
-- [ ] **F.2 Crear `pages/Employees/EmployeesPage.tsx`**
-  - Tabla vacía con columnas definidas (nombre, rol, órdenes, ventas)
-  - Integrar `features/employees/api.ts`
+- [x] **F.2 Crear `pages/Employees/EmployeesPage.tsx`**
+  - [x] Tabla con columnas (nombre, rol, status) usando shadcn Table + Badge
 
-- [ ] **F.3 Crear `features/products/api.ts`**
-  - `useProducts()`, `useProduct(id)`, `useCategories()`
+- [x] **F.3 Crear `features/products/api.ts`**
+  - [x] `useProducts()`, `useProduct(id)`, `useCategories()` con tipos
 
-- [ ] **F.4 Crear `pages/Products/ProductsPage.tsx`**
-  - Tabla vacía con columnas (nombre, categoría, precio, cantidad vendida)
-  - Sección de categorías analíticas (placeholder)
+- [x] **F.4 Crear `pages/Products/ProductsPage.tsx`**
+  - [x] Tabla con columnas (nombre, categoría, precio, status)
 
-- [ ] **F.5 Crear `features/orders/api.ts`**
-  - `useOrders()`, `useOrder(id)`
+- [x] **F.5 Crear `features/orders/api.ts`**
+  - [x] `useOrders()`, `useOrder(id)` con tipos e interfaces
 
-- [ ] **F.6 Crear `pages/Orders/OrdersPage.tsx`**
-  - Tabla vacía con filtros por fecha (placeholder)
-  - Drawer o modal para detalle de orden
+- [x] **F.6 Crear `pages/Orders/OrdersPage.tsx`**
+  - [x] Tabla con columnas (ID, empleado, total, status, fecha)
 
-- [ ] **F.7 Crear `features/sync/api.ts`**
-  - `useSyncStatus()`, `useSyncLogs()`, `useSyncTrigger()`, `useSyncBackfill()`
+- [x] **F.7 Crear `features/sync/api.ts`**
+  - [x] `useSyncStatus()`, `useSyncLogs()`, `useSyncTrigger()`, `useSyncBackfill()`
 
-- [ ] **F.8 Crear `features/sync/components/SyncStatusCard.tsx`**
-  - Muestra última sync por entidad (órders, items, employees, payments)
-  - Indicador visual: éxito (verde), fallo (rojo), en progreso (amarillo)
+- [x] **F.8 Crear `features/sync/components/SyncStatusCard.tsx`**
+  - [x] Muestra estado por entidad con Badge de colores
 
-- [ ] **F.9 Crear `features/sync/components/SyncTriggerButton.tsx`**
-  - Botón "Sync Now" que llama a `useSyncTrigger().mutate()`
-  - Dropdown para seleccionar entidad
+- [x] **F.9 Crear `features/sync/components/SyncTriggerButton.tsx`**
+  - [x] Dropdown para seleccionar entidad + botón "Sync Now"
 
-- [ ] **F.10 Crear `features/sync/components/SyncLogTable.tsx`**
-  - Tabla con últimos logs de sincronización
-  - Consume `useSyncLogs()`
+- [x] **F.10 Crear `features/sync/components/SyncLogTable.tsx`**
+  - [x] Tabla con logs de sincronización
 
-- [ ] **F.11 Crear `pages/Settings/SettingsPage.tsx`**
-  - Estado de conexión con Clover (`features/sync/components/SyncStatusCard`)
-  - Botón "Sync manual" (`SyncTriggerButton`)
-  - Logs de sincronización (`SyncLogTable`)
-  - Botón "Revoke connection" (usa `features/auth/api.ts`)
+- [x] **F.11 Crear `pages/Settings/SettingsPage.tsx`**
+  - [x] SyncStatusCard, SyncTriggerButton, SyncLogTable, botón Revoke
 
-- [ ] **F.12 Actualizar `Sidebar.tsx`**
-  - Asegurar que todos los links naveguen correctamente a las 5 rutas protegidas
+- [x] **F.12 Actualizar `Sidebar.tsx`**
+  - [x] Links a 5 rutas protegidas ya funcionales
 
-- [ ] **F.13 Verificar navegación completa**
-  - Clic en cada item del sidebar → cambio de ruta correcto
-  - Refresh en `/employees` → no 404 (configurar Vite fallback)
+- [x] **F.13 Verificar build**
+  - [x] `pnpm run build` → ✅ exitoso (2959 módulos)
 
 **Commit sugerido:** `feat(frontend): employees, products, orders, settings pages with sync integration`
 

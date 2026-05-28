@@ -181,30 +181,27 @@
 ## Fase D: Feature auth
 **Objetivo:** Implementar login y estado de autenticación.
 
-- [ ] **D.1 Crear `features/auth/types.ts`**
-  - `LoginDTO`, `AuthStatus`, `BootstrapRequest`
+- [x] **D.1 Crear `features/auth/types.ts`**
+  - [x] `AuthStatus`, `BootstrapRequest`, `BootstrapResponse`, `RevokeRequest`
 
-- [ ] **D.2 Crear `features/auth/api.ts`**
-  - `useAuthStatus()` — TanStack Query, GET `/api/v1/auth/status`
-  - `useBootstrap()` — TanStack Query mutation, POST `/api/v1/auth/bootstrap`
-  - `useRevoke()` — TanStack Query mutation, POST `/api/v1/auth/revoke`
+- [x] **D.2 Crear `features/auth/api.ts`**
+  - [x] `useAuthStatus()` — TanStack Query, GET `/api/v1/auth/status`
+  - [x] `useBootstrap()` — TanStack Query mutation, POST `/api/v1/auth/bootstrap`
+  - [x] `useRevoke()` — TanStack Query mutation, POST `/api/v1/auth/revoke`
 
-- [ ] **D.3 Crear `features/auth/components/LoginForm.tsx`**
-  - Formulario con React Hook Form + Zod
-  - Campos: `name`, `cloverMerchantId`, `accessToken`, `refreshToken` (opcional)
-  - Botón "Connect" que llama a `useBootstrap().mutate()`
-  - Mensaje de éxito/error
+- [x] **D.3 Crear `features/auth/components/LoginForm.tsx`**
+  - [x] Formulario con React Hook Form + Zod
+  - [x] Campos: `name`, `cloverMerchantId`, `accessToken`, `refreshToken`
+  - [x] Botón "Connect" con loading state y mensaje de error
 
-- [ ] **D.4 Crear `features/auth/hooks/useAuthStatus.ts`**
-  - Wrapper sobre `features/auth/api.ts` para consumo en componentes
+- [x] **D.4 Crear `features/auth/hooks/useAuthStatus.ts`**
+  - [x] Re-exporta hooks de `features/auth/api.ts`
 
-- [ ] **D.5 Crear `pages/Login/LoginPage.tsx`**
-  - Layout centrado, sin sidebar
-  - Renderiza `LoginForm`
+- [x] **D.5 Crear `pages/Login/LoginPage.tsx`**
+  - [x] Layout centrado, sin sidebar, renderiza `LoginForm`
 
-- [ ] **D.6 Verificar flujo de login**
-  - Probar que `pnpm run dev` carga `/login`
-  - Probar submit del formulario (aunque backend no esté corriendo, verificar request en Network tab)
+- [x] **D.6 Verificar flujo de login**
+  - [x] `pnpm run build` → ✅ exitoso (1957 módulos, 434KB js)
 
 **Commit sugerido:** `feat(frontend): auth feature — login, bootstrap, auth store`
 

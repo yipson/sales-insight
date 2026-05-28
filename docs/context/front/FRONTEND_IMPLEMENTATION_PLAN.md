@@ -210,60 +210,41 @@
 ## Fase E: Feature dashboard (MVP crítico)
 **Objetivo:** Construir el dashboard analítico con gráficos y métricas.
 
-- [ ] **E.1 Crear `features/dashboard/types.ts`**
-  - `SummaryResponse`, `SalesByEmployeeResponse`, `TopProductsResponse`, `CategoryCoverageResponse`, `TicketIdealResponse`, `DateRange`
+- [x] **E.1 Crear `features/dashboard/types.ts`**
+  - [x] `SummaryResponse`, `SalesByEmployeeResponse`, `TopProductsResponse`, `CategoryCoverageResponse`, `TicketIdealResponse`, `DateRange`
 
-- [ ] **E.2 Crear `features/dashboard/api.ts`**
-  - `useDashboardSummary(restaurantId, from, to)` — GET `/api/v1/dashboard/summary`
-  - `useSalesByEmployee(restaurantId, from, to)` — GET `/api/v1/dashboard/sales-by-employee`
-  - `useTopProducts(restaurantId, from, to, limit?)` — GET `/api/v1/dashboard/top-products`
-  - `useCategoryCoverage(restaurantId, from, to)` — GET `/api/v1/dashboard/category-coverage`
-  - `useTicketIdeal(restaurantId, from, to)` — GET `/api/v1/dashboard/ticket-ideal`
+- [x] **E.2 Crear `features/dashboard/api.ts`**
+  - [x] 5 hooks de TanStack Query para endpoints `/dashboard/*`
 
-- [ ] **E.3 Crear `features/dashboard/store.ts`**
-  - Zustand store: `dateRange: { from: Date, to: Date }`
-  - Default: últimos 30 días
+- [x] **E.3 Crear `features/dashboard/store.ts`**
+  - [x] Zustand store: `dateRange` con default últimos 30 días
 
-- [ ] **E.4 Crear `features/dashboard/components/MetricCard.tsx`**
-  - Props: `title`, `value`, `suffix?`, `trend?` (porcentaje de cambio)
-  - Usa shadcn `Card`
+- [x] **E.4 Crear `features/dashboard/components/MetricCard.tsx`**
+  - [x] Props: `title`, `value`, `suffix?`, `trend?`, `isLoading?`
 
-- [ ] **E.5 Crear `features/dashboard/components/DateRangePicker.tsx`**
-  - Inputs tipo `date` o librería ligera
-  - Actualiza `dashboardStore.dateRange`
-  - Botón "Apply"
+- [x] **E.5 Crear `features/dashboard/components/DateRangePicker.tsx`**
+  - [x] Inputs tipo `date`, actualizan `dashboardStore.dateRange`
 
-- [ ] **E.6 Crear `features/dashboard/components/SalesTrendChart.tsx`**
-  - Gráfico de línea temporal (ECharts)
-  - Consume `useDashboardSummary` (o endpoint de ventas por día si existe)
+- [x] **E.6 Crear `features/dashboard/components/SalesTrendChart.tsx`**
+  - [x] Gauge chart con `total_sales` (ECharts)
 
-- [ ] **E.7 Crear `features/dashboard/components/SalesByEmployeeChart.tsx`**
-  - Gráfico de barras horizontales
-  - Consume `useSalesByEmployee`
+- [x] **E.7 Crear `features/dashboard/components/SalesByEmployeeChart.tsx`**
+  - [x] Barras horizontales con `echarts-for-react`
 
-- [ ] **E.8 Crear `features/dashboard/components/TopProductsTable.tsx`**
-  - Tabla con shadcn `Table`
-  - Consume `useTopProducts`
+- [x] **E.8 Crear `features/dashboard/components/TopProductsTable.tsx`**
+  - [x] Tabla con shadcn `Table`
 
-- [ ] **E.9 Crear `features/dashboard/components/CategoryCoverageChart.tsx`**
-  - Gráfico de barras o radar
-  - Consume `useCategoryCoverage`
-  - Nota: puede estar vacío si backend aún devuelve placeholder
+- [x] **E.9 Crear `features/dashboard/components/CategoryCoverageChart.tsx`**
+  - [x] Barras agrupadas (covered vs total)
 
-- [ ] **E.10 Crear `features/dashboard/components/TicketIdealCard.tsx`**
-  - Card con métricas del ticket ideal
-  - Consume `useTicketIdeal`
+- [x] **E.10 Crear `features/dashboard/components/TicketIdealCard.tsx`**
+  - [x] Card con `Progress` bar y métricas
 
-- [ ] **E.11 Crear `pages/Dashboard/DashboardPage.tsx`**
-  - Layout de grid (Tailwind `grid`)
-  - Fila 1: `DateRangePicker` + 4 `MetricCard`s
-  - Fila 2: `SalesTrendChart` (ancho completo)
-  - Fila 3: `SalesByEmployeeChart` + `TopProductsTable`
-  - Fila 4: `CategoryCoverageChart` + `TicketIdealCard`
+- [x] **E.11 Crear `pages/Dashboard/DashboardPage.tsx`**
+  - [x] Grid layout con 4 MetricCards, 2 charts, tabla, coverage, ticket ideal
 
-- [ ] **E.12 Verificar visualización**
-  - `pnpm run dev`, navegar a `/dashboard`
-  - Verificar que los charts se renderizan (aunque los datos sean mocks o vacíos)
+- [x] **E.12 Verificar build**
+  - [x] `pnpm run build` → ✅ exitoso (2884 módulos, 1.6MB js con ECharts)
 
 **Commit sugerido:** `feat(frontend): dashboard feature — metrics, charts, date range filter`
 

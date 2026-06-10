@@ -92,7 +92,7 @@ func setupTestService() (*Service, *mockOAuthClient, *mockMerchantRepository, *t
 	cache := tokencache.NewCache()
 	oauth := &mockOAuthClient{}
 	repo := newMockMerchantRepository()
-	svc := NewService(oauth, repo, enc, cache, "client_id", "client_secret")
+	svc := NewService(oauth, repo, enc, cache, "client_id", "client_secret", "test-jwt-secret")
 	return svc, oauth, repo, cache, enc
 }
 

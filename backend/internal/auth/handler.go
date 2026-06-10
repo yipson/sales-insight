@@ -2,6 +2,7 @@ package auth
 
 import (
 	"net/http"
+	"strings"
 
 	"github.com/google/uuid"
 	"github.com/labstack/echo/v4"
@@ -29,10 +30,16 @@ func NewHandler(service *Service, merchantSvc *merchant.Service, oauthClient *cl
 	}
 }
 
-// RegisterRoutes registers auth routes on the given Echo group.
-func (h *Handler) RegisterRoutes(g *echo.Group) {
+// RegisterPublicRoutes registers auth routes that do NOT require JWT.
+func (h *Handler) RegisterPublicRoutes(g *echo.Group) {
 	g.GET("/auth/clover", h.InitOAuth)
 	g.GET("/auth/clover/callback", h.Callback)
+	g.POST("/auth/token", h.Token)
+}
+
+// RegisterProtectedRoutes registers auth routes that DO require JWT.
+func (h *Handler) RegisterProtectedRoutes(g *echo.Group) {
+	g.GET("/auth/me", h.Me)
 	g.POST("/auth/bootstrap", h.Bootstrap)
 	g.GET("/auth/status", h.Status)
 	g.POST("/auth/revoke", h.Revoke)
@@ -62,6 +69,89 @@ func (h *Handler) Callback(c echo.Context) error {
 		"message":      "connected",
 		"merchant_id":  m.ID,
 		"clover_env":   m.CloverEnv,
+	})
+}
+
+// TokenRequest holds the authorization code from Clover OAuth callback.
+type TokenRequest struct {
+	Code       string `json:"code"`
+	MerchantID string `json:"merchant_id"`
+}
+
+// Token exchanges a Clover authorization code for an internal JWT session token.
+func (h *Handler) Token(c echo.Context) error {
+	var req TokenRequest
+	if err := c.Bind(&req); err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, err.Error())
+	}
+	if req.Code == "" || req.MerchantID == "" {
+		return echo.NewHTTPError(http.StatusBadRequest, "code and merchant_id are required")
+	}
+
+	// Exchange code with Clover and persist tokens
+	m, err := h.service.HandleCallback(c.Request().Context(), req.Code, req.MerchantID)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusInternalServerError, err.Error())
+	}
+
+	// Generate internal JWT for frontend session
+	token, err := h.service.GenerateJWT(m.ID, m.CloverMerchantID)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusInternalServerError, "failed to generate token: "+err.Error())
+	}
+
+	return c.JSON(http.StatusOK, map[string]interface{}{
+		"token":  token,
+		"merchant": map[string]interface{}{
+			"id":               m.ID,
+			"name":             m.Name,
+			"clover_merchant_id": m.CloverMerchantID,
+			"is_connected":     m.IsConnected,
+		},
+	})
+}
+
+// Me returns the authenticated merchant's profile.
+func (h *Handler) Me(c echo.Context) error {
+	auth := c.Request().Header.Get("Authorization")
+	if auth == "" {
+		return echo.NewHTTPError(http.StatusUnauthorized, "missing authorization header")
+	}
+
+	tokenString := strings.TrimPrefix(auth, "Bearer ")
+	if tokenString == auth {
+		return echo.NewHTTPError(http.StatusUnauthorized, "invalid authorization header format")
+	}
+
+	_, claims, err := h.service.ValidateJWT(tokenString)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusUnauthorized, "invalid token")
+	}
+
+	merchantIDStr, ok := claims["merchant_id"].(string)
+	if !ok {
+		return echo.NewHTTPError(http.StatusUnauthorized, "invalid token claims")
+	}
+
+	merchantID, err := uuid.Parse(merchantIDStr)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusUnauthorized, "invalid merchant_id in token")
+	}
+
+	m, err := h.merchantSvc.GetByID(c.Request().Context(), merchantID)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusInternalServerError, err.Error())
+	}
+	if m == nil {
+		return echo.NewHTTPError(http.StatusNotFound, "merchant not found")
+	}
+
+	return c.JSON(http.StatusOK, map[string]interface{}{
+		"id":                 m.ID,
+		"name":               m.Name,
+		"clover_merchant_id": m.CloverMerchantID,
+		"is_connected":       m.IsConnected,
+		"clover_env":         m.CloverEnv,
 	})
 }
 

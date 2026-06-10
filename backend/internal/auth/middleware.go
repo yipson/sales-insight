@@ -9,6 +9,8 @@ import (
 )
 
 // JWTAuth middleware validates JWT tokens on protected routes.
+// It extracts merchant_id and clover_merchant_id from the token claims
+// and stores them in the echo context for downstream handlers.
 func JWTAuth(secret string) echo.MiddlewareFunc {
 	return func(next echo.HandlerFunc) echo.HandlerFunc {
 		return func(c echo.Context) error {
@@ -32,7 +34,16 @@ func JWTAuth(secret string) echo.MiddlewareFunc {
 				return echo.NewHTTPError(http.StatusUnauthorized, "invalid token")
 			}
 
-			// Token is valid, continue
+			// Extract claims and store in context for handlers
+			if claims, ok := token.Claims.(jwt.MapClaims); ok {
+				if merchantID, ok := claims["merchant_id"].(string); ok {
+					c.Set("merchant_id", merchantID)
+				}
+				if cloverMerchantID, ok := claims["clover_merchant_id"].(string); ok {
+					c.Set("clover_merchant_id", cloverMerchantID)
+				}
+			}
+
 			return next(c)
 		}
 	}

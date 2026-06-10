@@ -28,14 +28,23 @@ func (h *Handler) RegisterRoutes(g *echo.Group) {
 	g.GET("/dashboard/ticket-ideal", h.TicketIdeal)
 }
 
-func parseDateRange(c echo.Context) (uuid.UUID, time.Time, time.Time, error) {
+func getRestaurantIDFromContext(c echo.Context) (uuid.UUID, error) {
+	// Try JWT context first
+	if merchantID, ok := c.Get("merchant_id").(string); ok && merchantID != "" {
+		return uuid.Parse(merchantID)
+	}
+	// Fallback to query param (for backward compatibility or public routes)
 	restaurantIDStr := c.QueryParam("restaurant_id")
 	if restaurantIDStr == "" {
-		return uuid.Nil, time.Time{}, time.Time{}, echo.NewHTTPError(http.StatusBadRequest, "restaurant_id is required")
+		return uuid.Nil, echo.NewHTTPError(http.StatusBadRequest, "restaurant_id is required")
 	}
-	restaurantID, err := uuid.Parse(restaurantIDStr)
+	return uuid.Parse(restaurantIDStr)
+}
+
+func parseDateRange(c echo.Context) (uuid.UUID, time.Time, time.Time, error) {
+	restaurantID, err := getRestaurantIDFromContext(c)
 	if err != nil {
-		return uuid.Nil, time.Time{}, time.Time{}, echo.NewHTTPError(http.StatusBadRequest, "invalid restaurant_id")
+		return uuid.Nil, time.Time{}, time.Time{}, err
 	}
 
 	fromStr := c.QueryParam("from")

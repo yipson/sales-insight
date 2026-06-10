@@ -77,6 +77,15 @@ func (h *Handler) Trigger(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusBadRequest, err.Error())
 	}
 
+	// Fallback to JWT context if restaurant_id not in body
+	if req.RestaurantID == uuid.Nil {
+		restaurantID, err := parseRestaurantID(c)
+		if err != nil {
+			return err
+		}
+		req.RestaurantID = restaurantID
+	}
+
 	ctx := c.Request().Context()
 	var err error
 	switch req.Entity {
@@ -111,6 +120,14 @@ func (h *Handler) Backfill(c echo.Context) error {
 	var req BackfillRequest
 	if err := c.Bind(&req); err != nil {
 		return echo.NewHTTPError(http.StatusBadRequest, err.Error())
+	}
+	// Fallback to JWT context if restaurant_id not in body
+	if req.RestaurantID == uuid.Nil {
+		restaurantID, err := parseRestaurantID(c)
+		if err != nil {
+			return err
+		}
+		req.RestaurantID = restaurantID
 	}
 	if req.RestaurantID == uuid.Nil {
 		return echo.NewHTTPError(http.StatusBadRequest, "restaurant_id is required")
@@ -203,6 +220,11 @@ func (h *Handler) Errors(c echo.Context) error {
 }
 
 func parseRestaurantID(c echo.Context) (uuid.UUID, error) {
+	// Try JWT context first
+	if merchantID, ok := c.Get("merchant_id").(string); ok && merchantID != "" {
+		return uuid.Parse(merchantID)
+	}
+	// Fallback to query param
 	restaurantIDStr := c.QueryParam("restaurant_id")
 	if restaurantIDStr == "" {
 		return uuid.Nil, echo.NewHTTPError(http.StatusBadRequest, "restaurant_id is required")

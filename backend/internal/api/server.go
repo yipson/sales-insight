@@ -34,6 +34,7 @@ func NewServer(
 	dashboardHandler *dashboard.Handler,
 	syncHandler *sync.Handler,
 	frontendURL string,
+	jwtSecret string,
 ) *Server {
 	e := echo.New()
 	e.HideBanner = true
@@ -58,16 +59,20 @@ func NewServer(
 		return c.JSON(http.StatusOK, map[string]string{"status": "healthy"})
 	})
 
-	// API v1
+	// API v1 — public routes (no JWT required)
 	v1 := e.Group("/api/v1")
+	authHandler.RegisterPublicRoutes(v1)
 
-	merchantHandler.RegisterRoutes(v1)
-	authHandler.RegisterRoutes(v1)
-	employeeHandler.RegisterRoutes(v1)
-	productHandler.RegisterRoutes(v1)
-	orderHandler.RegisterRoutes(v1)
-	dashboardHandler.RegisterRoutes(v1)
-	syncHandler.RegisterRoutes(v1)
+	// API v1 — protected routes (JWT required)
+	protected := v1.Group("")
+	protected.Use(auth.JWTAuth(jwtSecret))
+	authHandler.RegisterProtectedRoutes(protected)
+	merchantHandler.RegisterRoutes(protected)
+	employeeHandler.RegisterRoutes(protected)
+	productHandler.RegisterRoutes(protected)
+	orderHandler.RegisterRoutes(protected)
+	dashboardHandler.RegisterRoutes(protected)
+	syncHandler.RegisterRoutes(protected)
 
 	return &Server{
 		e:        e,

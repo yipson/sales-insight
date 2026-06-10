@@ -25,16 +25,21 @@ func (h *Handler) RegisterRoutes(g *echo.Group) {
 	g.GET("/employees/:id/orders", h.GetEmployeeOrders)
 }
 
-func (h *Handler) List(c echo.Context) error {
-	// In a real multi-tenant setup the restaurantID would come from the JWT.
-	// For now we require it as a query parameter for flexibility during development.
+func getRestaurantID(c echo.Context) (uuid.UUID, error) {
+	if merchantID, ok := c.Get("merchant_id").(string); ok && merchantID != "" {
+		return uuid.Parse(merchantID)
+	}
 	restaurantIDStr := c.QueryParam("restaurant_id")
 	if restaurantIDStr == "" {
-		return echo.NewHTTPError(http.StatusBadRequest, "restaurant_id is required")
+		return uuid.Nil, echo.NewHTTPError(http.StatusBadRequest, "restaurant_id is required")
 	}
-	restaurantID, err := uuid.Parse(restaurantIDStr)
+	return uuid.Parse(restaurantIDStr)
+}
+
+func (h *Handler) List(c echo.Context) error {
+	restaurantID, err := getRestaurantID(c)
 	if err != nil {
-		return echo.NewHTTPError(http.StatusBadRequest, "invalid restaurant_id")
+		return err
 	}
 
 	emps, err := h.service.ListByRestaurant(c.Request().Context(), restaurantID)

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/golang-jwt/jwt/v5"
 	"github.com/google/uuid"
 
 	"github.com/sales-insight/backend/internal/clover"
@@ -21,6 +22,7 @@ type Service struct {
 	tokenCache   *tokencache.Cache
 	clientID     string
 	clientSecret string
+	jwtSecret    string
 }
 
 // NewService creates an auth service.
@@ -29,7 +31,7 @@ func NewService(
 	merchantRepo merchant.Repository,
 	encrypter *security.Encrypter,
 	tokenCache *tokencache.Cache,
-	clientID, clientSecret string,
+	clientID, clientSecret, jwtSecret string,
 ) *Service {
 	return &Service{
 		oauthClient:  oauthClient,
@@ -38,6 +40,7 @@ func NewService(
 		tokenCache:   tokenCache,
 		clientID:     clientID,
 		clientSecret: clientSecret,
+		jwtSecret:    jwtSecret,
 	}
 }
 
@@ -225,4 +228,38 @@ func (s *Service) GetAccessToken(merchantID uuid.UUID) (string, bool) {
 		return "", false
 	}
 	return td.AccessToken, true
+}
+
+// GenerateJWT creates a new JWT token for the frontend session.
+// It includes merchant_id and clover_merchant_id claims.
+func (s *Service) GenerateJWT(merchantID uuid.UUID, cloverMerchantID string) (string, error) {
+	claims := jwt.MapClaims{
+		"merchant_id":        merchantID.String(),
+		"clover_merchant_id": cloverMerchantID,
+		"exp":                time.Now().Add(24 * time.Hour).Unix(),
+		"iat":                time.Now().Unix(),
+	}
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+	return token.SignedString([]byte(s.jwtSecret))
+}
+
+// ValidateJWT parses and validates a JWT token string.
+// Returns the parsed token and its claims if valid.
+func (s *Service) ValidateJWT(tokenString string) (*jwt.Token, jwt.MapClaims, error) {
+	token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
+		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
+			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
+		}
+		return []byte(s.jwtSecret), nil
+	})
+	if err != nil {
+		return nil, nil, err
+	}
+
+	claims, ok := token.Claims.(jwt.MapClaims)
+	if !ok || !token.Valid {
+		return nil, nil, fmt.Errorf("invalid token claims")
+	}
+
+	return token, claims, nil
 }

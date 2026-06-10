@@ -37,18 +37,25 @@ func (h *Handler) RegisterRoutes(g *echo.Group) {
 	g.DELETE("/analytic-categories/:id", h.DeleteAnalyticCategory)
 }
 
+func getRestaurantID(c echo.Context) (uuid.UUID, error) {
+	if merchantID, ok := c.Get("merchant_id").(string); ok && merchantID != "" {
+		return uuid.Parse(merchantID)
+	}
+	restaurantIDStr := c.QueryParam("restaurant_id")
+	if restaurantIDStr == "" {
+		return uuid.Nil, echo.NewHTTPError(http.StatusBadRequest, "restaurant_id is required")
+	}
+	return uuid.Parse(restaurantIDStr)
+}
+
 // ============================================================
 // Product handlers
 // ============================================================
 
 func (h *Handler) ListProducts(c echo.Context) error {
-	restaurantIDStr := c.QueryParam("restaurant_id")
-	if restaurantIDStr == "" {
-		return echo.NewHTTPError(http.StatusBadRequest, "restaurant_id is required")
-	}
-	restaurantID, err := uuid.Parse(restaurantIDStr)
+	restaurantID, err := getRestaurantID(c)
 	if err != nil {
-		return echo.NewHTTPError(http.StatusBadRequest, "invalid restaurant_id")
+		return err
 	}
 
 	products, err := h.service.ListProductsByRestaurant(c.Request().Context(), restaurantID)
@@ -78,13 +85,9 @@ func (h *Handler) GetProductByID(c echo.Context) error {
 // ============================================================
 
 func (h *Handler) ListCategories(c echo.Context) error {
-	restaurantIDStr := c.QueryParam("restaurant_id")
-	if restaurantIDStr == "" {
-		return echo.NewHTTPError(http.StatusBadRequest, "restaurant_id is required")
-	}
-	restaurantID, err := uuid.Parse(restaurantIDStr)
+	restaurantID, err := getRestaurantID(c)
 	if err != nil {
-		return echo.NewHTTPError(http.StatusBadRequest, "invalid restaurant_id")
+		return err
 	}
 
 	categories, err := h.service.ListCategoriesByRestaurant(c.Request().Context(), restaurantID)
@@ -131,13 +134,9 @@ func (h *Handler) MapCategory(c echo.Context) error {
 // ============================================================
 
 func (h *Handler) ListAnalyticCategories(c echo.Context) error {
-	restaurantIDStr := c.QueryParam("restaurant_id")
-	if restaurantIDStr == "" {
-		return echo.NewHTTPError(http.StatusBadRequest, "restaurant_id is required")
-	}
-	restaurantID, err := uuid.Parse(restaurantIDStr)
+	restaurantID, err := getRestaurantID(c)
 	if err != nil {
-		return echo.NewHTTPError(http.StatusBadRequest, "invalid restaurant_id")
+		return err
 	}
 
 	categories, err := h.service.ListAnalyticCategoriesByRestaurant(c.Request().Context(), restaurantID)

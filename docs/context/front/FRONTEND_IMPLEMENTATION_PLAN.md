@@ -317,10 +317,134 @@
 - [x] **G.5 Verificar tipos**
   - [x] `pnpm exec tsc --noEmit` → ✅ sin errores de TypeScript
 
-- [ ] **G.6 Actualizar `AGENTS.md` y `ESTADO_ACTUAL.md`**
-  - Pendiente: reflejar que frontend ya no es "starter vacío"
+- [x] **G.6 Actualizar documentación**
+  - [x] Este archivo actualizado con fases A-G completadas
 
 **Commit sugerido:** `feat(frontend): integration, validation, and documentation update`
+
+---
+
+## Fase H: Backend — Generación de JWT y protección de rutas
+**Objetivo:** Implementar sesiones con JWT interno para el frontend, separando tokens de Clover (backend) de tokens de sesión (frontend).
+
+> **Nota:** El backend ya tiene `clover/oauth_client.go` con `ExchangeCode`, `RefreshTokens` y `AuthorizeURL`. El backend ya maneja tokens de Clover. Lo que falta es generar JWT propios para sesiones del frontend y proteger los endpoints.
+
+- [x] **H.1 Generar JWT en `auth/service.go`**
+  - [x] Agregados `GenerateJWT()` y `ValidateJWT()` con claims `merchant_id`, `clover_merchant_id`, `exp` (24h)
+  - [x] Firma con `JWT_SECRET`
+
+- [x] **H.2 Crear endpoint `POST /api/v1/auth/token`**
+  - [x] Recibe `{ code, merchant_id }`, intercambia con Clover, genera JWT
+  - [x] Devuelve `{ token, merchant }`
+
+- [x] **H.3 Crear endpoint `GET /api/v1/auth/me`**
+  - [x] Valida Bearer JWT, devuelve datos del merchant, 401 si inválido
+
+- [x] **H.4 Mejorar middleware JWT `auth.Middleware()`**
+  - [x] Extrae claims `merchant_id` y `clover_merchant_id` del token
+  - [x] Inyecta en `echo.Context` para handlers
+
+- [x] **H.5 Aplicar middleware JWT a rutas protegidas**
+  - [x] Rutas públicas: `/health`, `/auth/clover`, `/auth/token`
+  - [x] Rutas protegidas: todo `/api/v1/*` excepto las públicas
+
+- [x] **H.6 Ajustar handlers protegidos para leer `restaurant_id` del context**
+  - [x] Dashboard: `getRestaurantIDFromContext()` con fallback a query param
+  - [x] Sync: `parseRestaurantID()` lee context JWT primero
+  - [x] Employees, Products, Orders: helper `getRestaurantID()` con fallback
+  - [x] Todos los tests pasan
+
+**Commit sugerido:** `feat(auth): JWT generation, middleware, and protected routes`
+
+---
+
+## Fase I: Frontend — Flujo OAuth completo con Clover
+**Objetivo:** Reemplazar el login manual/bootstrap por el flujo OAuth nativo de Clover con JWT interno.
+
+> **Flujo esperado:**
+> 1. Usuario entra a `/` → ProtectedRoute verifica JWT → si no hay → `/login`
+> 2. LoginPage muestra botón "Connect with Clover" → redirige a Clover OAuth
+> 3. Usuario se autentica en Clover → Clover redirige a `/auth/callback?code=xxx&merchant_id=yyy`
+> 4. AuthCallbackPage captura code → POST `/api/v1/auth/token` → recibe JWT → guarda en authStore → redirige a `/dashboard`
+> 5. Backend refresca tokens de Clover automáticamente cuando vencen (via `refresh_token`)
+
+- [ ] **I.1 Qitar `VITE_SKIP_AUTH=true` de `.env` y `.env.example`**
+  - [ ] `.env`: eliminar la variable o dejarla comentada
+  - [ ] `.env.example`: eliminar la variable
+
+- [ ] **I.2 Crear `pages/AuthCallback/AuthCallbackPage.tsx`**
+  - [ ] Lee query params de URL: `code`, `merchant_id`
+  - [ ] Hace `POST /api/v1/auth/token` con `{ code, merchant_id }`
+  - [ ] Guarda JWT en `authStore.login(token, merchantId)`
+  - [ ] Guarda merchant data en store
+  - [ ] Redirige a `/dashboard` en éxito
+  - [ ] Muestra error en fallo
+
+- [ ] **I.3 Ajustar `pages/Login/LoginPage.tsx`**
+  - [ ] Eliminar formulario manual de bootstrap
+  - [ ] Si hay `?code=...` en URL → renderiza `AuthCallbackPage`
+  - [ ] Si no hay code → muestra botón "Connect with Clover"
+  - [ ] Botón redirige a `GET /api/v1/auth/clover` (o construye URL de Clover directamente)
+
+- [ ] **I.4 Ajustar `core/store/authStore.ts`**
+  - [ ] Guardar JWT interno (no access token de Clover)
+  - [ ] Agregar `merchant` al store: `{ id, name, cloverMerchantId }`
+  - [ ] `login(token, merchantId, merchantData)` → guarda todo
+  - [ ] `logout()` → limpia JWT y merchant
+  - [ ] `isAuthenticated` → verifica que JWT existe y no está expirado
+
+- [ ] **I.5 Ajustar `core/api/client.ts`**
+  - [ ] Interceptor request: inyecta `Authorization: Bearer <jwt>` desde `authStore`
+  - [ ] Interceptor response 401: llama `authStore.logout()` + redirige a `/login`
+
+- [ ] **I.6 Ajustar `core/router/AppRouter.tsx`**
+  - [ ] Agregar ruta `/auth/callback` → `AuthCallbackPage`
+  - [ ] Ruta `/` → redirect a `/dashboard` (ya existe)
+
+- [ ] **I.7 Ajustar `core/router/ProtectedRoute.tsx`**
+  - [ ] Verificar JWT en `authStore` (en lugar de mock)
+  - [ ] Opcional: validar expiración del JWT decodificando el payload
+  - [ ] Si no hay JWT → redirige a `/login`
+
+**Commit sugerido:** `feat(frontend): OAuth Clover flow with JWT sessions`
+
+---
+
+## Fase J: Configuración Clover y pruebas de integración
+**Objetivo:** Configurar la app en Clover Developer Console y probar el flujo end-to-end.
+
+- [ ] **J.1 Configurar `redirect_uri` en Clover Developer Console**
+  - [ ] Sandbox: `http://localhost:5173/auth/callback`
+  - [ ] Producción (futuro): `https://tu-dominio.com/auth/callback`
+
+- [ ] **J.2 Verificar scopes en Clover App**
+  - [ ] `ORDERS_R` — lectura de órdenes
+  - [ ] `INVENTORY_R` — lectura de productos
+  - [ ] `EMPLOYEES_R` — lectura de empleados
+  - [ ] `MERCHANT_R` — lectura de información del merchant
+  - [ ] `PAYMENTS_R` — lectura de pagos
+
+- [ ] **J.3 Configurar variables de entorno del backend**
+  - [ ] `CLOVER_ENV=sandbox`
+  - [ ] `CLOVER_CLIENT_ID=...`
+  - [ ] `CLOVER_CLIENT_SECRET=...`
+  - [ ] `JWT_SECRET=...` (32+ chars)
+
+- [ ] **J.4 Probar flujo completo**
+  - [ ] Entrar a `http://localhost:5173/` → redirige a `/login`
+  - [ ] Clic "Connect with Clover" → redirige a Clover OAuth
+  - [ ] Login en Clover → redirige a `/auth/callback?code=...&merchant_id=...`
+  - [ ] Frontend captura code → POST `/api/v1/auth/token` → recibe JWT
+  - [ ] Redirige a `/dashboard` → carga métricas con JWT en header
+  - [ ] Navegar entre páginas → JWT se envía en cada request
+  - [ ] Logout → limpia JWT → redirige a `/login`
+
+- [ ] **J.5 Probar redirección desde Clover App Dashboard**
+  - [ ] Desde Clover Dashboard, hacer clic en el ícono de nuestra app
+  - [ ] Clover redirige a `/auth/callback?code=...` directamente
+  - [ ] Frontend detecta code → completa flujo → va a `/dashboard`
+
+**Commit sugerido:** `feat: Clover OAuth integration and end-to-end validation`
 
 ---
 
@@ -335,6 +459,9 @@
 | 5 | `feat(frontend): dashboard feature — metrics, charts, date range filter` | E |
 | 6 | `feat(frontend): employees, products, orders, settings pages with sync integration` | F |
 | 7 | `feat(frontend): integration, validation, and documentation update` | G |
+| 8 | `feat(auth): JWT generation, middleware, and protected routes` | H |
+| 9 | `feat(frontend): OAuth Clover flow with JWT sessions` | I |
+| 10 | `feat: Clover OAuth integration and end-to-end validation` | J |
 
 ---
 
@@ -344,6 +471,7 @@
 - **Manejo de errores:** Implementar `ErrorBoundary` de React en una mejora futura (wrap de `AppRouter`).
 - **Loading states:** Usar los estados `isLoading`/`isFetching` de TanStack Query en cada componente que consume datos.
 - **Dark mode:** Implementar toggle en Header desde Fase C; aplicar clase `dark` en `<html>` y usar `dark:` prefixes de Tailwind.
+- **Seguridad JWT:** El JWT del frontend es independiente del access token de Clover. El backend maneja ambos: JWT para sesión del frontend, access/refresh tokens de Clover para llamadas a la API de Clover. El backend refresca automáticamente el access token de Clover cuando vence, sin intervención del frontend.
 
 ---
 

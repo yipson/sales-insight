@@ -93,6 +93,7 @@ func main() {
 		tokenCache,
 		cfg.Clover.ClientID,
 		cfg.Clover.ClientSecret,
+		cfg.Security.JWTSecret,
 	)
 	authHandler := auth.NewHandler(authService, merchantSvc, oauthClient, cfg.Clover.ClientID, cfg.Server.FrontendURL)
 
@@ -139,6 +140,7 @@ func main() {
 		dashboardHandler,
 		syncHandler,
 		cfg.Server.FrontendURL,
+		cfg.Security.JWTSecret,
 	)
 
 	go func() {

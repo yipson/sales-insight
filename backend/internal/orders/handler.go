@@ -24,14 +24,21 @@ func (h *Handler) RegisterRoutes(g *echo.Group) {
 	g.GET("/orders/:id", h.GetByID)
 }
 
-func (h *Handler) List(c echo.Context) error {
+func getRestaurantID(c echo.Context) (uuid.UUID, error) {
+	if merchantID, ok := c.Get("merchant_id").(string); ok && merchantID != "" {
+		return uuid.Parse(merchantID)
+	}
 	restaurantIDStr := c.QueryParam("restaurant_id")
 	if restaurantIDStr == "" {
-		return echo.NewHTTPError(http.StatusBadRequest, "restaurant_id is required")
+		return uuid.Nil, echo.NewHTTPError(http.StatusBadRequest, "restaurant_id is required")
 	}
-	restaurantID, err := uuid.Parse(restaurantIDStr)
+	return uuid.Parse(restaurantIDStr)
+}
+
+func (h *Handler) List(c echo.Context) error {
+	restaurantID, err := getRestaurantID(c)
 	if err != nil {
-		return echo.NewHTTPError(http.StatusBadRequest, "invalid restaurant_id")
+		return err
 	}
 
 	fromStr := c.QueryParam("from")
